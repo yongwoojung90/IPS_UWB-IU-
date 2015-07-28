@@ -54,13 +54,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		keys[wParam] = TRUE;
 		hdc = GetDC(hWnd);
-		mbstowcs(text1, tofVal, strlen(tofVal) + 1);
+		mbstowcs(text1, ywStruct.str, strlen(ywStruct.str) + 1);
 		TextOut(hdc, 100, 100, text1, 15);
 		ReleaseDC(hWnd, hdc);
 		return 0;
 		break;
 	case WM_KEYUP:
 		keys[wParam] = FALSE;
+		return 0;
+	case WM_DESTROY:
+		PostQuitMessage(0);
 		return 0;
 	}
 	return DefWindowProc(hWnd, iMessage, wParam, lParam);
@@ -73,8 +76,10 @@ DWORD WINAPI GetToF(LPVOID ywStruct)
 	ULONG      ulRetCode = 0;
 	WSADATA    WSAData = { 0 };
 	ULONGLONG  ululRemoteBthAddr = 0;
-	int mode = 1;
+	int mode = 2;
 	YWstruct* pYWstruct;
+	char g_szRemoteName[BTH_MAX_NAME_SIZE + 1] = { 0 };  // 1 extra for trailing NULL character
+	char g_szRemoteAddr[CXN_BDADDR_STR_LEN + 1] = { 0 }; // 1 extra for trailing NULL character
 
 	pYWstruct = (YWstruct*)ywStruct;
 

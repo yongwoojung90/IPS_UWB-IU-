@@ -1,75 +1,26 @@
 #include "IU_BTComm.h"
 
 // {B62C4E8D-62CC-404b-BBBF-BF3E3BBB1374}
-DEFINE_GUID(g_guidServiceClass, 0xb62c4e8d, 0x62cc, 0x404b, 0xbb, 0xbf, 0xbf, 0x3e, 0x3b, 0xbb, 0x13, 0x74);
-
-#define CXN_BDADDR_STR_LEN                17   // 6 two-digit hex values plus 5 colons
-#define CXN_TRANSFER_DATA_LENGTH          40  // length of the data to be transferred
-#define CXN_MAX_INQUIRY_RETRY             3
-#define CXN_DELAY_NEXT_INQUIRY            15
-
-char g_szRemoteName[BTH_MAX_NAME_SIZE + 1] = { 0 };  // 1 extra for trailing NULL character
-char g_szRemoteAddr[CXN_BDADDR_STR_LEN + 1] = { 0 }; // 1 extra for trailing NULL character
-// This just redundant!!!!
-int  g_ulMaxCxnCycles = 1, g_iOutputLevel = 0;
-
-
-
-int IU_BTComm()
-{
-	ULONG      ulRetCode = 0;
-	WSADATA    WSAData = { 0 };
-	ULONGLONG  ululRemoteBthAddr = 0;
-	int mode = 0;
-
-	// Ask for Winsock version 2.2.
-	if ((ulRetCode = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0)
-	{
-		printf("-FATAL- | Unable to initialize Winsock version 2.2\n");
-		goto CleanupAndExit;
-	}
-	else
-		wprintf(L"WSAStartup() is OK!\n");
-
-	printf("접속할 디바이스의 이름을 알고있는 경우 1입력, MAC 주소를 알고있는 경우 2입력\n");
-	scanf("%d\n", &mode);
-
-
-	if (mode == 1)
-	{
-		scanf("%s", g_szRemoteName);
-		printf("Running in the client mode...\n");
-		// Get address from name of the remote device and run the application in client mode
-		if ((ulRetCode = NameToBthAddr(g_szRemoteName, (BTH_ADDR *)&ululRemoteBthAddr)) != 0)
-		{
-			printf("-FATAL- | Unable to get address of the remote radio having name %s\n", g_szRemoteName);
-			goto CleanupAndExit;
-		}
-
-		ulRetCode = RunClientMode(ululRemoteBthAddr, g_ulMaxCxnCycles);
-	}
-	else if (mode == 2)
-	{
-		scanf("%s", g_szRemoteAddr);
-		printf("Running in the client mode...\n");
-		// Get address from formatted address-string of the remote device and run the application in client mode
-		//  should be calling the WSAStringToAddress()
-		if (0 != (ulRetCode = AddrStringToBtAddr(g_szRemoteAddr, (BTH_ADDR *)&ululRemoteBthAddr)))
-		{
-			printf("-FATAL- | Unable to get address of the remote radio having formatted address-string %s\n", g_szRemoteAddr);
-			goto CleanupAndExit;
-		}
-
-		ulRetCode = RunClientMode(ululRemoteBthAddr, g_ulMaxCxnCycles);
-	}
-
-
-CleanupAndExit:
-	return (int)(ulRetCode);
-}
-
-// This just redundant!!!!
+//DEFINE_GUID(g_guidServiceClass, 0xb62c4e8d, 0x62cc, 0x404b, 0xbb, 0xbf, 0xbf, 0x3e, 0x3b, 0xbb, 0x13, 0x74);
 //
+//#define CXN_BDADDR_STR_LEN                17   // 6 two-digit hex values plus 5 colons
+//#define CXN_TRANSFER_DATA_LENGTH          40  // length of the data to be transferred
+//#define CXN_MAX_INQUIRY_RETRY             3
+//#define CXN_DELAY_NEXT_INQUIRY            15
+//
+//char g_szRemoteName[BTH_MAX_NAME_SIZE + 1] = { 0 };  // 1 extra for trailing NULL character
+//char g_szRemoteAddr[CXN_BDADDR_STR_LEN + 1] = { 0 }; // 1 extra for trailing NULL character
+//// This just redundant!!!!
+//int  g_ulMaxCxnCycles = 1, g_iOutputLevel = 0;
+
+/*
+주석처리된 printf들 지우던지 아니면 다시 주석풀던지....
+*/
+
+//ToF* ptrToF; //개구림... 이렇게 전역으로 떄려서 GetToF에서 받은 pToF를 runClient에게 주지 말고 구조체를 만들던지... 내부적으로 인자를 전달하던지해야지..ㅠ 너무 구림
+
+
+// This just redundant!!!!
 // TODO: use inquiry timeout SDP_DEFAULT_INQUIRY_SECONDS
 // NameToBthAddr converts a bluetooth device name to a bluetooth address,
 // if required by performing inquiry with remote name requests.
@@ -77,24 +28,21 @@ CleanupAndExit:
 ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 {
 	INT          iResult = 0, iRetryCount = 0;
-	BOOL         bContinueLookup = FALSE, bRemoteDeviceFound = FALSE;
+	BOOL         bContinueLookup = FALSE;
+	BOOL		 bRemoteDeviceFound = FALSE;
 	ULONG        ulFlags = 0, ulPQSSize = sizeof(WSAQUERYSET);
 	HANDLE       hLookup = 0;
 	PWSAQUERYSET pWSAQuerySet = NULL;
 
 	if ((pszRemoteName == NULL) || (pRemoteBtAddr == NULL))
 	{
-		printf("Remote name or address is NULL!\n");
 		goto CleanupAndExit;
 	}
 
 	if ((pWSAQuerySet = (PWSAQUERYSET)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, ulPQSSize)) == NULL)
 	{
-		printf("!ERROR! | Unable to allocate memory for WSAQUERYSET!\n");
 		goto CleanupAndExit;
 	}
-	else
-		printf("HeapAlloc() for WSAQUERYSET is OK!\n");
 
 	// Search for the device with the correct name
 	for (iRetryCount = 0; !bRemoteDeviceFound && (iRetryCount < CXN_MAX_INQUIRY_RETRY); iRetryCount++)
@@ -111,7 +59,7 @@ ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 
 		if (iRetryCount == 0)
 		{
-			printf("*INFO* | Inquiring device from cache...\n");
+			//printf("*INFO* | Inquiring device from cache...\n");
 		}
 		else
 		{
@@ -127,11 +75,11 @@ ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 			// completed.  Without a window to receive IN_RANGE notifications,
 			// we don't have a direct mechanism to determine when remote
 			// name requests have completed.
-			printf("*INFO* | Unable to find device.  Waiting for %d seconds before re-inquiry...\n", CXN_DELAY_NEXT_INQUIRY);
-			printf("I am sleeping for a while...\n");
+			//printf("*INFO* | Unable to find device.  Waiting for %d seconds before re-inquiry...\n", CXN_DELAY_NEXT_INQUIRY);
+			//printf("I am sleeping for a while...\n");
 			Sleep(CXN_DELAY_NEXT_INQUIRY * 1000);
 
-			printf("*INFO* | Inquiring device ...\n");
+			//printf("*INFO* | Inquiring device ...\n");
 		}
 
 		// Start the lookup service
@@ -146,12 +94,12 @@ ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 
 		if ((iResult == NO_ERROR) && (hLookup != NULL))
 		{
-			printf("WSALookupServiceBegin() is fine!\n");
+			//printf("WSALookupServiceBegin() is fine!\n");
 			bContinueLookup = TRUE;
 		}
 		else if (0 < iRetryCount)
 		{
-			printf("=CRITICAL= | WSALookupServiceBegin() failed with error code %d, Error = %d\n", iResult, WSAGetLastError());
+			//printf("=CRITICAL= | WSALookupServiceBegin() failed with error code %d, Error = %d\n", iResult, WSAGetLastError());
 			goto CleanupAndExit;
 		}
 
@@ -168,16 +116,16 @@ ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 			// pWSAQuerySet->dwSize = sizeof(WSAQUERYSET);
 			if (WSALookupServiceNext(hLookup, ulFlags, &ulPQSSize, pWSAQuerySet) == NO_ERROR)
 			{
-				printf("WSALookupServiceNext() is OK lol!\n");
+				//printf("WSALookupServiceNext() is OK lol!\n");
 
 				if ((pWSAQuerySet->lpszServiceInstanceName != NULL))
 				{
 					// Found a remote bluetooth device with matching name.
 					// Get the address of the device and exit the lookup.
-					printf("Again, remote name: %S\n", pWSAQuerySet->lpszServiceInstanceName);
+					//printf("Again, remote name: %S\n", pWSAQuerySet->lpszServiceInstanceName);
 					// Need to convert to the 'standard' address format
-					printf("Local address: %012X\n", pWSAQuerySet->lpcsaBuffer->LocalAddr);
-					printf("Remote address: %012X\n", pWSAQuerySet->lpcsaBuffer->RemoteAddr);
+					//printf("Local address: %012X\n", pWSAQuerySet->lpcsaBuffer->LocalAddr);
+					//printf("Remote address: %012X\n", pWSAQuerySet->lpcsaBuffer->RemoteAddr);
 					CopyMemory(pRemoteBtAddr, &((PSOCKADDR_BTH)pWSAQuerySet->lpcsaBuffer->RemoteAddr.lpSockaddr)->btAddr,
 						sizeof(*pRemoteBtAddr));
 					bRemoteDeviceFound = TRUE;
@@ -189,7 +137,7 @@ ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 				if ((iResult = WSAGetLastError()) == WSA_E_NO_MORE) //No more data
 				{
 					// No more devices found.  Exit the lookup.
-					printf("No more device found...\n");
+					//printf("No more device found...\n");
 					bContinueLookup = FALSE;
 				}
 				else if (iResult == WSAEFAULT)
@@ -201,15 +149,16 @@ ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBtAddr)
 					pWSAQuerySet = NULL;
 					if (NULL == (pWSAQuerySet = (PWSAQUERYSET)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, ulPQSSize)))
 					{
-						printf("!ERROR! | Unable to allocate memory for WSAQERYSET...\n");
+						//printf("!ERROR! | Unable to allocate memory for WSAQERYSET...\n");
 						bContinueLookup = FALSE;
 					}
-					else
-						printf("HeapAlloc() for WSAQERYSET is OK!\n");
+					else{
+						//printf("HeapAlloc() for WSAQERYSET is OK!\n");
+					}
 				}
 				else
 				{
-					printf("=CRITICAL= | WSALookupServiceNext() failed with error code %d\n", iResult);
+					//printf("=CRITICAL= | WSALookupServiceNext() failed with error code %d\n", iResult);
 					bContinueLookup = FALSE;
 				}
 			}
@@ -258,7 +207,7 @@ ULONG AddrStringToBtAddr(const char * pszRemoteAddr, BTH_ADDR * pRemoteBtAddr)
 		&ulAddrData[3], &ulAddrData[4], &ulAddrData[5]);
 
 	// Construct a BTH_ADDR from 6 integers stored in the array
-	printf("Constructing the BTH_ADDR...\n");
+	//printf("Constructing the BTH_ADDR...\n");
 	for (i = 0; i < 6; i++)
 	{
 		// Extract data from the first 8 lower bits.
@@ -266,17 +215,16 @@ ULONG AddrStringToBtAddr(const char * pszRemoteAddr, BTH_ADDR * pRemoteBtAddr)
 		// Push 8 bits to the left
 		*pRemoteBtAddr = ((*pRemoteBtAddr) << 8) + BtAddrTemp;
 	}
-	printf("Remote address: 0X%X\n", pRemoteBtAddr);
+	//printf("Remote address: 0X%X\n", pRemoteBtAddr);
 
 CleanupAndExit:
 	return ulRetCode;
 }
 
 // It opens a socket, connects it to a remote socket, transfer some data over the connection and closes the connection.
-ULONG RunClientMode(ULONGLONG ululRemoteAddr, int iMaxCxnCycles)
+ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 {
 	ULONG              ulRetCode = 0;
-	int                iCxnCount = 0;
 	char               szData[CXN_TRANSFER_DATA_LENGTH] = { 0 };
 	char*			   pszData = szData;
 	SOCKET             LocalSocket = INVALID_SOCKET;
@@ -290,181 +238,168 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, int iMaxCxnCycles)
 	// Valid ports are 1 - 31
 	SockAddrBthServer.port = 1;
 
-	// Create a static data-string, which will be transferred to the remote Bluetooth device
-	//  may make this #define and do strlen() of the string
-	strncpy_s(szData, sizeof(szData), "~!@#$%^&*()-_=+?<>1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-		CXN_TRANSFER_DATA_LENGTH - 1);
+	//// Create a static data-string, which will be transferred to the remote Bluetooth device
+	////  may make this #define and do strlen() of the string
+	//strncpy_s(szData, sizeof(szData), "~!@#$%^&*()-_=+?<>1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
+	//	CXN_TRANSFER_DATA_LENGTH - 1);
 
-	// Run the connection/data-transfer for user specified number of cycles
-	for (iCxnCount = 0; (0 == ulRetCode) && (iCxnCount < iMaxCxnCycles || iMaxCxnCycles == 0); iCxnCount++)
+	
+	// Open a bluetooth socket using RFCOMM protocol
+	if ((LocalSocket = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM)) == INVALID_SOCKET)
 	{
-		printf("\n");
+		//printf("=CRITICAL= | socket() call failed. Error = [%d]\n", WSAGetLastError());
+		ulRetCode = 1;
+		goto CleanupAndExit;
+	}
 
-		// Open a bluetooth socket using RFCOMM protocol
-		if ((LocalSocket = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM)) == INVALID_SOCKET)
+	if (LocalSocket != INVALID_SOCKET)
+	{
+		//printf("*INFO* | socket() call succeeded. Socket = [0x%X]\n", LocalSocket);
+	}
+
+	//if (1 <= g_iOutputLevel)
+	//{
+	//	//printf("*INFO* | connect() attempt with Remote BTHAddr = [0x%X]\n", ululRemoteAddr);
+	//}
+
+	// Connect the socket (pSocket) to a given remote socket represented by address (pServerAddr)
+	if (connect(LocalSocket, (struct sockaddr *) &SockAddrBthServer, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR)
+	{
+		//printf("=CRITICAL= | connect() call failed. Error=[%d]\n", WSAGetLastError());
+		ulRetCode = 1;
+		goto CleanupAndExit;
+	}
+
+	if (connect(LocalSocket, (struct sockaddr *) &SockAddrBthServer, sizeof(SOCKADDR_BTH)) != SOCKET_ERROR)
+	{
+		//printf("*INFO* | connect() call succeeded!\n");
+	}
+
+	//receive넣어보자!
+	char* pszDataBufferIndex = NULL;
+	char szDataBuffer[CXN_TRANSFER_DATA_LENGTH] = { 0 };
+	int iTotalLengthReceived = 0, iLengthReceived = 0;
+	//printf("\n");
+
+	pszDataBufferIndex = &szDataBuffer[0];
+	while (iTotalLengthReceived < CXN_TRANSFER_DATA_LENGTH)
+	{
+		iLengthReceived = recv(LocalSocket, pszDataBufferIndex, (CXN_TRANSFER_DATA_LENGTH - iTotalLengthReceived), 0);
+
+		switch (iLengthReceived)
 		{
-			printf("=CRITICAL= | socket() call failed. Error = [%d]\n", WSAGetLastError());
+		case 0:
+			//to make 'Socket connection' closed gracefully!
+			break;
+		case SOCKET_ERROR:
+			//printf("=CRITICAL= | recv() call failed. Error=[%d]\n", WSAGetLastError());
 			ulRetCode = 1;
-			goto CleanupAndExit;
-		}
-
-		if ((2 <= g_iOutputLevel) | (LocalSocket != INVALID_SOCKET))
-		{
-			printf("*INFO* | socket() call succeeded. Socket = [0x%X]\n", LocalSocket);
-		}
-
-		if (1 <= g_iOutputLevel)
-		{
-			printf("*INFO* | connect() attempt with Remote BTHAddr = [0x%X]\n", ululRemoteAddr);
-		}
-
-		// Connect the socket (pSocket) to a given remote socket represented by address (pServerAddr)
-		if (connect(LocalSocket, (struct sockaddr *) &SockAddrBthServer, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR)
-		{
-			printf("=CRITICAL= | connect() call failed. Error=[%d]\n", WSAGetLastError());
-			ulRetCode = 1;
-			goto CleanupAndExit;
-		}
-
-		if ((2 <= g_iOutputLevel) | (connect(LocalSocket, (struct sockaddr *) &SockAddrBthServer, sizeof(SOCKADDR_BTH)) != SOCKET_ERROR))
-		{
-			printf("*INFO* | connect() call succeeded!\n");
-		}
-
-		//receive넣어보자!
-		BOOL bContinue;
-		char *             pszDataBufferIndex = NULL;
-		char               szDataBuffer[CXN_TRANSFER_DATA_LENGTH] = { 0 };
-		int iTotalLengthReceived = 0, iLengthReceived = 0;
-		for (iCxnCount = 0; (0 == ulRetCode) && ((iCxnCount < iMaxCxnCycles) || (iMaxCxnCycles == 0)); iCxnCount++)
-		{
-			printf("\n");
-
-			bContinue = TRUE;
-			pszDataBufferIndex = &szDataBuffer[0];
-			while (bContinue && (iTotalLengthReceived < CXN_TRANSFER_DATA_LENGTH))
-			{
-				iLengthReceived = recv(LocalSocket, pszDataBufferIndex, (CXN_TRANSFER_DATA_LENGTH - iTotalLengthReceived), 0);
-
-				switch (iLengthReceived)
-				{
-				case 0:
-					printf("Socket connection has been closed gracefully!\n");
-					bContinue = FALSE;
-					break;
-				case SOCKET_ERROR:
-					printf("=CRITICAL= | recv() call failed. Error=[%d]\n", WSAGetLastError());
-					bContinue = FALSE;
-					ulRetCode = 1;
-					break;
-				default: // most cases when data is being read
-					if (iTotalLengthReceived + iLengthReceived >= CXN_TRANSFER_DATA_LENGTH - 10){
-						iTotalLengthReceived = 0;
-						pszDataBufferIndex++;
-						pszDataBufferIndex = '\0';
-						pszDataBufferIndex = szDataBuffer;
-						if (szDataBuffer[0] == 't'){
-							printf("%s", szDataBuffer);
-						}
-						//else{
-						//	memset(szDataBuffer, '\0', sizeof(szDataBuffer)*CXN_TRANSFER_DATA_LENGTH);
-						//}
-						break;
-					}
-					pszDataBufferIndex += iLengthReceived;
-					iTotalLengthReceived += iLengthReceived;
-
-					if ((2 <= g_iOutputLevel) | (iLengthReceived != SOCKET_ERROR))
-					{
-						//printf("*INFO* | Receiving data of length = [%d]. Current Total = [%d]\n", iLengthReceived, iTotalLengthReceived);
-					}
-					break;
+			break;
+		default: // most cases when data is being read
+			if (iTotalLengthReceived + iLengthReceived >= CXN_TRANSFER_DATA_LENGTH - 10){
+				iTotalLengthReceived = 0;
+				pszDataBufferIndex++;
+				pszDataBufferIndex = '\0';
+				pszDataBufferIndex = szDataBuffer;
+				if (szDataBuffer[0] == 't'){
+					//printf("%s", szDataBuffer);
+					strcpy(ptrToF, szDataBuffer);
 				}
+				//else{
+				//	memset(szDataBuffer, '\0', sizeof(szDataBuffer)*CXN_TRANSFER_DATA_LENGTH);
+				//}
+				break;
 			}
+			pszDataBufferIndex += iLengthReceived;
+			iTotalLengthReceived += iLengthReceived;
 
-			if (ulRetCode == 0)
+			if ((2 <= g_iOutputLevel) | (iLengthReceived != SOCKET_ERROR))
 			{
-				if (CXN_TRANSFER_DATA_LENGTH != iTotalLengthReceived)
-				{
-					printf("+WARNING+ | Data transfer aborted mid-stream. Expected Length = [%d], Actual Length = [%d]\n",
-						CXN_TRANSFER_DATA_LENGTH, iTotalLengthReceived);
-				}
-
-				printf("*INFO1* | Received following data string from remote device:\n%s\n", szDataBuffer);
-
-				// Close the connection
-				if (closesocket(LocalSocket) == SOCKET_ERROR)
-				{
-					printf("=CRITICAL= | closesocket() call failed w/socket = [0x%X]. Error=[%d]\n", LocalSocket, WSAGetLastError());
-					ulRetCode = 1;
-				}
-				else
-				{
-					// Make the connection invalid regardless
-					LocalSocket = INVALID_SOCKET;
-
-					if ((2 <= g_iOutputLevel) | (closesocket(LocalSocket) != SOCKET_ERROR))
-					{
-						printf("*INFO2* | closesocket() call succeeded w/socket=[0x%X]\n", LocalSocket);
-					}
-				}
+				////printf("*INFO* | Receiving data of length = [%d]. Current Total = [%d]\n", iLengthReceived, iTotalLengthReceived);
 			}
-		}
-
-		//일단 recv()잘됨 근데 스트림 버퍼에서 읽어오는게 문제인듯?
-		////recv()넣어보자 2
-		//for (int i = 0; i < CXN_TRANSFER_DATA_LENGTH; i++){
-		//	szData[i] = '\0';
-		//}
-		//int iResult = 0;
-		//do {
-		//	//printf("recv() : ");
-		//	iResult = recv(LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, 0);
-		//	if (iResult > 0){
-		//		//printf(" %d Bytes received from sender", iResult);
-		//		printf(" data = %s\n",szData);
-		//		for (int i = 0; i < iResult; i++){
-		//			szData[i] = '\0';
-		//		}
-		//	}
-		//	else if (iResult == 0)
-		//		printf("Connection closed by peer!\n");
-		//	else
-		//		printf("recv() failed with error code %d\n", WSAGetLastError());
-		//} while (iResult > 0);
-
-
-		// send() call indicates winsock2 to send the given data
-		// of a specified length over a given connection.
-		printf("*INFO3* | Sending the following data string:\n\t%s\n", szData);
-		if (send(LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, 0) == SOCKET_ERROR)
-		{
-			printf("=CRITICAL= | send() call failed w/socket = [0x%X], szData = [%p], dataLen = [%d]. WSAGetLastError=[%d]\n",
-				LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, WSAGetLastError());
-			ulRetCode = 1;
-			goto CleanupAndExit;
-		}
-
-		if (2 <= g_iOutputLevel)
-		{
-			printf("*INFO4* | send() call succeeded\n");
-		}
-
-		// Close the socket
-		if (SOCKET_ERROR == closesocket(LocalSocket))
-		{
-			printf("=CRITICAL= | closesocket() call failed w/socket = [0x%X]. Error=[%d]\n", LocalSocket, WSAGetLastError());
-			ulRetCode = 1;
-			goto CleanupAndExit;
-		}
-
-		LocalSocket = INVALID_SOCKET;
-
-		if (2 <= g_iOutputLevel)
-		{
-			printf("*INFO5* | closesocket() call succeeded!");
+			break;
 		}
 	}
+
+	if (ulRetCode == 0)
+	{
+		if (CXN_TRANSFER_DATA_LENGTH != iTotalLengthReceived)
+		{
+			//printf("+WARNING+ | Data transfer aborted mid-stream. Expected Length = [%d], Actual Length = [%d]\n", CXN_TRANSFER_DATA_LENGTH, iTotalLengthReceived);
+		}
+
+		//printf("*INFO1* | Received following data string from remote device:\n%s\n", szDataBuffer);
+
+		// Close the connection
+		if (closesocket(LocalSocket) == SOCKET_ERROR)
+		{
+			//printf("=CRITICAL= | closesocket() call failed w/socket = [0x%X]. Error=[%d]\n", LocalSocket, WSAGetLastError());
+			ulRetCode = 1;
+		}
+		else
+		{
+			// Make the connection invalid regardless
+			LocalSocket = INVALID_SOCKET;
+
+			if ((2 <= g_iOutputLevel) | (closesocket(LocalSocket) != SOCKET_ERROR))
+			{
+				//printf("*INFO2* | closesocket() call succeeded w/socket=[0x%X]\n", LocalSocket);
+			}
+		}
+	}
+
+	//일단 recv()잘됨 근데 스트림 버퍼에서 읽어오는게 문제인듯?
+	////recv()넣어보자 2
+	//for (int i = 0; i < CXN_TRANSFER_DATA_LENGTH; i++){
+	//	szData[i] = '\0';
+	//}
+	//int iResult = 0;
+	//do {
+	//	////printf("recv() : ");
+	//	iResult = recv(LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, 0);
+	//	if (iResult > 0){
+	//		////printf(" %d Bytes received from sender", iResult);
+	//		//printf(" data = %s\n",szData);
+	//		for (int i = 0; i < iResult; i++){
+	//			szData[i] = '\0';
+	//		}
+	//	}
+	//	else if (iResult == 0)
+	//		//printf("Connection closed by peer!\n");
+	//	else
+	//		//printf("recv() failed with error code %d\n", WSAGetLastError());
+	//} while (iResult > 0);
+
+
+	// send() call indicates winsock2 to send the given data
+	// of a specified length over a given connection.
+	//printf("*INFO3* | Sending the following data string:\n\t%s\n", szData);
+	//if (send(LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, 0) == SOCKET_ERROR)
+	//{
+	//	//printf("=CRITICAL= | send() call failed w/socket = [0x%X], szData = [%p], dataLen = [%d]. WSAGetLastError=[%d]\n", LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, WSAGetLastError());
+	//	ulRetCode = 1;
+	//	goto CleanupAndExit;
+	//}
+	//if (2 <= g_iOutputLevel)
+	//{
+	//	//printf("*INFO4* | send() call succeeded\n");
+	//}
+
+	// Close the socket
+	if (SOCKET_ERROR == closesocket(LocalSocket))
+	{
+		//printf("=CRITICAL= | closesocket() call failed w/socket = [0x%X]. Error=[%d]\n", LocalSocket, WSAGetLastError());
+		ulRetCode = 1;
+		goto CleanupAndExit;
+	}
+
+	LocalSocket = INVALID_SOCKET;
+
+	if (2 <= g_iOutputLevel)
+	{
+		//printf("*INFO5* | closesocket() call succeeded!");
+	}
+
 
 CleanupAndExit:
 	if (LocalSocket != INVALID_SOCKET)

@@ -1,5 +1,5 @@
 #include "IU_BTComm.h"
-
+#include "Trilateration_2D.h"
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hIns;
 //HWND hWndMain;
@@ -51,6 +51,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID));
+		CloseHandle(CreateThread(NULL, 0, DrawTrilateration, NULL, 0, &ThreadID));
 	case WM_KEYDOWN:
 		keys[wParam] = TRUE;
 		hdc = GetDC(hWnd);
@@ -69,12 +70,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, iMessage, wParam, lParam);
 }
 
+DWORD WINAPI DrawTrilateration(LPVOID lpParam)
+{
+	TriThread();
+	return 0;
+}
 
 
 DWORD WINAPI GetToF(LPVOID ywStruct)
 {
 	ULONG      ulRetCode = 0;
-	WSADATA    WSAData = { 0 };
+	
 	ULONGLONG  ululRemoteBthAddr = 0;
 	int mode = 2;
 	YWstruct* pYWstruct;
@@ -84,6 +90,7 @@ DWORD WINAPI GetToF(LPVOID ywStruct)
 	pYWstruct = (YWstruct*)ywStruct;
 
 	// Ask for Winsock version 2.2.
+	WSADATA    WSAData = { 0 };
 	if ((ulRetCode = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0)
 	{
 		goto CleanupAndExit;

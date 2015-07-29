@@ -206,171 +206,79 @@ CleanupAndExit:
 ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 {
 	//ULONG              ulRetCode = 0;
-	SOCKET             LocalSocket = INVALID_SOCKET;
-	SOCKADDR_BTH       SockAddrBthServer = { 0 };
-	char* pszDataBufferIndex = NULL;
-	char szDataBuffer[CXN_TRANSFER_DATA_LENGTH] = { 0 };
-	pszDataBufferIndex = &szDataBuffer[0];
-	int iTotalLengthReceived = 0, iLengthReceived = 0;
- 
-	SockAddrBthServer.addressFamily = AF_BTH; // Setting address family to AF_BTH indicates winsock2 to use Bluetooth sockets
-	SockAddrBthServer.btAddr = (BTH_ADDR)ululRemoteAddr;
-	SockAddrBthServer.serviceClassId = g_guidServiceClass;
-	SockAddrBthServer.port = 1;	// Valid ports are 1 - 31. if ServiceClassId is spesified, Port should be set to 0
+	SOCKET             BT_Socket = INVALID_SOCKET; //Socket도 핸들 처럼 음..ID 라고 생각하면된다? 값도 실제로 정수값을 가진다.
+	SOCKADDR_BTH       BT_SockAddr = { 0 };
+	char recvBuffer[IU_RECEIVE_DATA_LENGTH] = { 0 };
+	int recvDataLength = 0;
+
+	BT_SockAddr.addressFamily = AF_BTH; // Setting address family to AF_BTH indicates winsock2 to use Bluetooth sockets
+	BT_SockAddr.btAddr = (BTH_ADDR)ululRemoteAddr;
+	BT_SockAddr.serviceClassId = g_guidServiceClass;
+	BT_SockAddr.port = 1;	// Valid ports are 1 - 31. if ServiceClassId is spesified, Port should be set to 0
 
 	//// Create a static data-string, which will be transferred to the remote Bluetooth device
 	////  may make this #define and do strlen() of the string
 	//strncpy_s(szData, sizeof(szData), "~!@#$%^&*()-_=+?<>1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
 	//	CXN_TRANSFER_DATA_LENGTH - 1);
 
-	if ((LocalSocket = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM)) == INVALID_SOCKET)
+	//소켓 생성
+	BT_Socket = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
+
+	//error check
+	if (BT_Socket == INVALID_SOCKET){
+		ywStruct->WSA_ErrorCode = WSAGetLastError();
+		ywStruct->IU_ErrorCode = IU_ERROR_SOCKET;
+		goto CleanupAndExit;
+		/*TO DO : 바로 위에 goto Clean~ 이거 대신 프로세스 멈추고 경고 날리는거 구현*/
+	}
+
+
+	if (connect(BT_Socket, (struct sockaddr *) &BT_SockAddr, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR)
 	{
-		//printf("=CRITICAL= | socket() call failed. Error = [%d]\n", WSAGetLastError());
-		
-		//ulRetCode = 1;
+		ywStruct->WSA_ErrorCode = WSAGetLastError();
+		ywStruct->IU_ErrorCode = IU_ERROR_CONNECTION;
 		goto CleanupAndExit;
 	}
 
-	if (LocalSocket != INVALID_SOCKET)
-	{
-		//printf("*INFO* | socket() call succeeded. Socket = [0x%X]\n", LocalSocket);
-	}
 
+	while (1) {
+		recvDataLength = recv(BT_Socket, recvBuffer, IU_RECEIVE_DATA_LENGTH, 0);
 
-	// Connect the socket (pSocket) to a given remote socket represented by address (pServerAddr)
-	if (connect(LocalSocket, (struct sockaddr *) &SockAddrBthServer, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR)
-	{
-		wprintf(L"=CRITICAL= | connect() call failed. Error=[%d]\n", WSAGetLastError());
-		//ulRetCode = 1;
-		goto CleanupAndExit;
-	}
-
-	if (connect(LocalSocket, (struct sockaddr *) &SockAddrBthServer, sizeof(SOCKADDR_BTH)) != SOCKET_ERROR)
-	{
-		//printf("*INFO* | connect() call succeeded!\n");
-	}
-
-	while (1)
-	{
-		iLengthReceived = recv(LocalSocket, pszDataBufferIndex, (CXN_TRANSFER_DATA_LENGTH - iTotalLengthReceived), 0);
-
-		switch (iLengthReceived)
+		switch (recvDataLength)
 		{
 		case 0:
 			//to make 'Socket connection' closed gracefully!
 			break;
 		case SOCKET_ERROR:
-			//printf("=CRITICAL= | recv() call failed. Error=[%d]\n", WSAGetLastError());
-			//ulRetCode = 1;
+			ywStruct->WSA_ErrorCode = WSAGetLastError();
 			break;
-		default: // most cases when data is being read
-			if (iTotalLengthReceived + iLengthReceived >= CXN_TRANSFER_DATA_LENGTH - 10){
-				iTotalLengthReceived = 0;
-				pszDataBufferIndex++;
-				pszDataBufferIndex = '\0';
-				pszDataBufferIndex = szDataBuffer;
-				if (szDataBuffer[0] == 't'){
-					//printf("%s", szDataBuffer);
-					strcpy(ywStruct->str, szDataBuffer);
-				}
-				//else{
-				//	memset(szDataBuffer, '\0', sizeof(szDataBuffer)*CXN_TRANSFER_DATA_LENGTH);
-				//}
-				break;
-			}
-			pszDataBufferIndex += iLengthReceived;
-			iTotalLengthReceived += iLengthReceived;
-
-			if (iLengthReceived != SOCKET_ERROR)
-			{
-				////printf("*INFO* | Receiving data of length = [%d]. Current Total = [%d]\n", iLengthReceived, iTotalLengthReceived);
+		default:
+			if (recvBuffer[0] == 't'){
+				//printf("%s", szDataBuffer);
+				strcpy(ywStruct->str, recvBuffer);
 			}
 			break;
 		}
 	}
 
-	//if (ulRetCode == 0)
-	if (1)
-	{
-		if (CXN_TRANSFER_DATA_LENGTH != iTotalLengthReceived)
-		{
-			//printf("+WARNING+ | Data transfer aborted mid-stream. Expected Length = [%d], Actual Length = [%d]\n", CXN_TRANSFER_DATA_LENGTH, iTotalLengthReceived);
-		}
-
-		//printf("*INFO1* | Received following data string from remote device:\n%s\n", szDataBuffer);
-
-		// Close the connection
-		if (closesocket(LocalSocket) == SOCKET_ERROR)
-		{
-			//printf("=CRITICAL= | closesocket() call failed w/socket = [0x%X]. Error=[%d]\n", LocalSocket, WSAGetLastError());
-			//ulRetCode = 1;
-		}
-		else
-		{
-			// Make the connection invalid regardless
-			LocalSocket = INVALID_SOCKET;
-
-			if (closesocket(LocalSocket) != SOCKET_ERROR)
-			{
-				//printf("*INFO2* | closesocket() call succeeded w/socket=[0x%X]\n", LocalSocket);
-			}
-		}
-	}
-
-	//일단 recv()잘됨 근데 스트림 버퍼에서 읽어오는게 문제인듯?
-	////recv()넣어보자 2
-	//for (int i = 0; i < CXN_TRANSFER_DATA_LENGTH; i++){
-	//	szData[i] = '\0';
-	//}
-	//int iResult = 0;
-	//do {
-	//	////printf("recv() : ");
-	//	iResult = recv(LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, 0);
-	//	if (iResult > 0){
-	//		////printf(" %d Bytes received from sender", iResult);
-	//		//printf(" data = %s\n",szData);
-	//		for (int i = 0; i < iResult; i++){
-	//			szData[i] = '\0';
-	//		}
-	//	}
-	//	else if (iResult == 0)
-	//		//printf("Connection closed by peer!\n");
-	//	else
-	//		//printf("recv() failed with error code %d\n", WSAGetLastError());
-	//} while (iResult > 0);
-
-
-	// send() call indicates winsock2 to send the given data
-	// of a specified length over a given connection.
-	//printf("*INFO3* | Sending the following data string:\n\t%s\n", szData);
-	//if (send(LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, 0) == SOCKET_ERROR)
-	//{
-	//	//printf("=CRITICAL= | send() call failed w/socket = [0x%X], szData = [%p], dataLen = [%d]. WSAGetLastError=[%d]\n", LocalSocket, szData, CXN_TRANSFER_DATA_LENGTH, WSAGetLastError());
-	//	ulRetCode = 1;
-	//	goto CleanupAndExit;
-	//}
-	//if (2 <= g_iOutputLevel)
-	//{
-	//	//printf("*INFO4* | send() call succeeded\n");
-	//}
-
-	// Close the socket
-	if (SOCKET_ERROR == closesocket(LocalSocket))
-	{
-		//printf("=CRITICAL= | closesocket() call failed w/socket = [0x%X]. Error=[%d]\n", LocalSocket, WSAGetLastError());
-		//ulRetCode = 1;
+	if (closesocket(BT_Socket) == SOCKET_ERROR) {
+		ywStruct->WSA_ErrorCode = WSAGetLastError();
 		goto CleanupAndExit;
 	}
-
-	LocalSocket = INVALID_SOCKET;
+	else {
+		// Make the connection invalid regardless
+		BT_Socket = INVALID_SOCKET;
+		closesocket(BT_Socket);
+	}
+	
 
 
 
 CleanupAndExit:
-	if (LocalSocket != INVALID_SOCKET)
+	if (BT_Socket != INVALID_SOCKET)
 	{
-		closesocket(LocalSocket);
-		LocalSocket = INVALID_SOCKET;
+		closesocket(BT_Socket);
+		BT_Socket = INVALID_SOCKET;
 	}
 	return 0;
 	//return ulRetCode;

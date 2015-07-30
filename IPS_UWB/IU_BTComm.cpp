@@ -253,9 +253,13 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 			ywStruct->WSA_ErrorCode = WSAGetLastError();
 			break;
 		default:
-			if (recvBuffer[0] == 't'){
+			//if (recvDataLength != 23) break;
+			if (recvBuffer[0] == '*'){
 				//printf("%s", szDataBuffer);
 				strcpy(ywStruct->str, recvBuffer);
+				parsing(recvBuffer, ywStruct);
+				//MessageBox(ywStruct->hWndMain, L"recv complete", L"recv complete", MB_OK);
+				::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
 			}
 			break;
 		}
@@ -270,7 +274,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		BT_Socket = INVALID_SOCKET;
 		closesocket(BT_Socket);
 	}
-	
+
 
 
 
@@ -282,4 +286,81 @@ CleanupAndExit:
 	}
 	return 0;
 	//return ulRetCode;
+}
+
+void parsing(char* string, YWstruct* ywStruct){
+	int i = 0;
+	distance data;
+	int start_flag = 0;
+	int index = 0;
+
+	char anchor1[10];
+	char anchor2[10];
+	char anchor3[10];
+	char anchor4[10];
+
+	int index1 = 0;
+	int index2 = 0;
+	int index3 = 0;
+	int index4 = 0;
+
+	while (1){
+		if (i > 30) i = 0;
+		if (*(string + i) == '*'){		// 시작 문자
+			start_flag = 1;
+			index = 1;
+			index1 = 0;
+			index2 = 0;
+			index3 = 0;
+			index4 = 0;
+		}
+		else if (*(string + i) == '='){		// 끝 문자
+			start_flag = 0;
+			index = 0;
+
+			//data.anchor1 = atof(anchor1);		// 받은 데이터 변환
+			//data.anchor2 = atof(anchor2);
+			//data.anchor3 = atof(anchor3);
+			//data.anchor4 = atof(anchor4);
+			ywStruct->distance_1 = atof(anchor1) * 20.0f;
+			ywStruct->distance_2 = atof(anchor2) * 20.0f;
+			ywStruct->distance_3 = atof(anchor3) * 20.0f;
+
+
+			//for (i = 0; i < index1; i++)		// anchor 문자열 초기화
+			//	anchor1[i] = 0;
+			//for (i = 0; i < index2; i++)
+			//	anchor2[i] = 0;
+			//for (i = 0; i < index3; i++)
+			//	anchor3[i] = 0;
+			//for (i = 0; i < index4; i++)
+			//	anchor4[i] = 0;
+
+			break;
+		}
+		else if (*(string + i) == ','){		// Anchor 구분 문자
+			index += 1;
+		}
+		else{
+			if (index == 1){		// Anchor1
+				anchor1[index1] = *(string + i);
+				index1 += 1;
+			}
+			else if (index == 2){		// Anchor2
+				anchor2[index2] = *(string + i);
+				index2 += 1;
+			}
+			else if (index == 3){		// Anchor3
+				anchor3[index3] = *(string + i);
+				index3 += 1;
+			}
+			else if (index == 4){		// Anchor4
+				anchor4[index4] = *(string + i);
+				index4 += 1;
+			}
+		}
+
+		i += 1;
+	}
+
 }

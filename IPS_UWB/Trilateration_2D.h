@@ -3,10 +3,10 @@
 #include <opencv\highgui.h>
 #include <opencv\cv.h>
 #include <math.h>
+#include "IU_BTComm.h"
 
 
-
-void TriThread();
+void TriThread(YWstruct* ywStruct);
 CvPoint Trilateration_2D(CvPoint Anchor1, CvPoint Anchor2, CvPoint Anchor3, double r1, double r2, double r3);
 double square(double x);
 void on_mouseEvent(int event, int x, int y, int flag, void* param);

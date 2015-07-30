@@ -13,8 +13,7 @@
 /////////////////////////////////////////////////////
 DEFINE_GUID(g_guidServiceClass, 0xb62c4e8d, 0x62cc, 0x404b, 0xbb, 0xbf, 0xbf, 0x3e, 0x3b, 0xbb, 0x13, 0x74);
 
-#define CXN_BDADDR_STR_LEN                17   // 6 two-digit hex values plus 5 colons
-#define IU_RECEIVE_DATA_LENGTH	          40  // length of the data to be transferred
+
 #define CXN_MAX_INQUIRY_RETRY             3
 #define CXN_DELAY_NEXT_INQUIRY            15
 
@@ -33,15 +32,27 @@ typedef struct _YWstruct{
 	int WSA_ErrorCode;		//Windows Socket Error Code, return value of WSAGetLastError();
 	int IU_ErrorCode;				//return value
 
+	HWND hWndMain;
+
 }YWstruct; // yongwoo struct 일단 작명할 꺼 생각안나서/ 이름 바꾸자!
 
 DWORD WINAPI GetToF(LPVOID ywStruct);
-DWORD WINAPI DrawTrilateration(LPVOID lpParam);
+//DWORD WINAPI DrawTrilateration(LPVOID lpParam);
 
 //Functions for BlueTooth Communication
 ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBthAddr);
 ULONG AddrStringToBtAddr(IN const char * pszRemoteAddr, OUT BTH_ADDR * pRemoteBtAddr);
 ULONG RunClientMode(ULONGLONG ululRemoteBthAddr, YWstruct* ywStruct);
 
+
+//////////////////////////////////////
+void parsing(char* string, YWstruct* ywStruct);
+typedef struct __distance{
+	double anchor1;
+	double anchor2;
+	double anchor3;
+	double anchor4;
+}distance;
+//////////////////////////////////////
 
 #endif

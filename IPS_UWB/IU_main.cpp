@@ -33,7 +33,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 		, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 
-
+	
 
 	while (GetMessage(&Message, NULL, 0, 0)){
 		TranslateMessage(&Message);
@@ -47,14 +47,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
 	DWORD ThreadID;
+	ywStruct.hWndMain = hWnd;
 	switch (iMessage)
 	{
 	case WM_CREATE:
 		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID));
-		CloseHandle(CreateThread(NULL, 0, DrawTrilateration, NULL, 0, &ThreadID));
+		//CloseHandle(CreateThread(NULL, 0, DrawTrilateration, NULL, 0, &ThreadID));
 	case WM_KEYDOWN:
 		keys[wParam] = TRUE;
 		hdc = GetDC(hWnd);
+		
 		mbstowcs(text1, ywStruct.str, strlen(ywStruct.str) + 1);
 		TextOut(hdc, 100, 100, text1, 15);
 		ReleaseDC(hWnd, hdc);
@@ -63,6 +65,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	case WM_KEYUP:
 		keys[wParam] = FALSE;
 		return 0;
+	case WM_USER + 1:
+		TriThread(&ywStruct);
+		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
@@ -70,11 +75,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, iMessage, wParam, lParam);
 }
 
-DWORD WINAPI DrawTrilateration(LPVOID lpParam)
-{
-	TriThread();
-	return 0;
-}
+//DWORD WINAPI DrawTrilateration(LPVOID lpParam)
+//{
+//	TriThread(&ywStruct);
+//	return 0;
+//}
 
 
 DWORD WINAPI GetToF(LPVOID ywStruct)
@@ -85,7 +90,7 @@ DWORD WINAPI GetToF(LPVOID ywStruct)
 	int mode = 2;
 	YWstruct* pYWstruct;
 	char g_szRemoteName[BTH_MAX_NAME_SIZE + 1] = { 0 };  // 1 extra for trailing NULL character
-	char g_szRemoteAddr[CXN_BDADDR_STR_LEN + 1] = { 0 }; // 1 extra for trailing NULL character
+	char g_szRemoteAddr[IU_BT_ADDR_LEN + 1] = { 0 }; // 1 extra for trailing NULL character
 
 	pYWstruct = (YWstruct*)ywStruct;
 

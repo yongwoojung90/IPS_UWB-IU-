@@ -8,6 +8,9 @@
 #include <ws2bth.h>
 #include "IU_DEF.h"
 
+//
+#include <string.h>
+
 
 //하.. 요 밑에꺼 좀 이쁘게 할수있는 방법 찾자
 /////////////////////////////////////////////////////
@@ -33,6 +36,7 @@ typedef struct _YWstruct{
 	int IU_ErrorCode;				//return value
 
 	HWND hWndMain;
+	HDC hDCMain;
 
 }YWstruct; // yongwoo struct 일단 작명할 꺼 생각안나서/ 이름 바꾸자!
 

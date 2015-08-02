@@ -232,7 +232,6 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		/*TO DO : 바로 위에 goto Clean~ 이거 대신 프로세스 멈추고 경고 날리는거 구현*/
 	}
 
-
 	if (connect(BT_Socket, (struct sockaddr *) &BT_SockAddr, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR)
 	{
 		ywStruct->WSA_ErrorCode = WSAGetLastError();
@@ -240,10 +239,14 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		goto CleanupAndExit;
 	}
 
-
+	ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
+	wchar_t text[IU_RECEIVE_DATA_LENGTH];
+	int len = 0;
 	while (1) {
-		recvDataLength = recv(BT_Socket, recvBuffer, IU_RECEIVE_DATA_LENGTH, 0);
 
+
+		recvDataLength = recv(BT_Socket, recvBuffer, IU_RECEIVE_DATA_LENGTH, 0);
+		recvBuffer[25] = '\0';
 		switch (recvDataLength)
 		{
 		case 0:
@@ -253,9 +256,15 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 			ywStruct->WSA_ErrorCode = WSAGetLastError();
 			break;
 		default:
-			//if (recvDataLength != 23) break;
-			if (recvBuffer[0] == '*'){
-				//printf("%s", szDataBuffer);
+
+			len = strlen(recvBuffer);
+			mbstowcs(text, recvBuffer, IU_RECEIVE_DATA_LENGTH);
+			TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);
+
+			if (recvBuffer[0] == '*' && recvDataLength == IU_RECEIVE_DATA_LENGTH){
+					
+				
+				
 				strcpy(ywStruct->str, recvBuffer);
 				parsing(recvBuffer, ywStruct);
 				//MessageBox(ywStruct->hWndMain, L"recv complete", L"recv complete", MB_OK);
@@ -264,7 +273,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 			break;
 		}
 	}
-
+	ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
 	if (closesocket(BT_Socket) == SOCKET_ERROR) {
 		ywStruct->WSA_ErrorCode = WSAGetLastError();
 		goto CleanupAndExit;

@@ -5,9 +5,10 @@ HINSTANCE g_hIns;
 //HWND hWndMain;
 
 YWstruct ywStruct;
-wchar_t text1[20];
 
 bool keys[256];
+
+LPCTSTR lpszClass = TEXT("IPS_UWB");
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 	, LPSTR lpszCmdParam, int nCmdShow)
@@ -24,22 +25,20 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 	WndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
 	WndClass.hInstance = hInstance;
 	WndClass.lpfnWndProc = WndProc;
-	WndClass.lpszClassName = L"First WindowProgramming";
+	WndClass.lpszClassName = lpszClass;
 	WndClass.lpszMenuName = NULL;
 	WndClass.style = CS_HREDRAW | CS_VREDRAW;
 	RegisterClass(&WndClass);
 
-	hWnd = CreateWindow(L"First WindowProgramming", L"First WindowProgramming", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT
+	hWnd = CreateWindow(lpszClass, lpszClass, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT
 		, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
-
-	
 
 	while (GetMessage(&Message, NULL, 0, 0)){
 		TranslateMessage(&Message);
 		DispatchMessage(&Message);
 	}
-
+	
 	return (int)Message.wParam;
 }
 
@@ -51,22 +50,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	switch (iMessage)
 	{
 	case WM_CREATE:
-		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID));
-		//CloseHandle(CreateThread(NULL, 0, DrawTrilateration, NULL, 0, &ThreadID));
+		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID)); //ToF값 받는 Thread 등록
 	case WM_KEYDOWN:
 		keys[wParam] = TRUE;
-		hdc = GetDC(hWnd);
-		
-		mbstowcs(text1, ywStruct.str, strlen(ywStruct.str) + 1);
-		TextOut(hdc, 100, 100, text1, 15);
-		ReleaseDC(hWnd, hdc);
 		return 0;
 		break;
 	case WM_KEYUP:
 		keys[wParam] = FALSE;
 		return 0;
 	case WM_USER + 1:
-		TriThread(&ywStruct);
+		//TriThread(&ywStruct);
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
@@ -75,12 +68,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, iMessage, wParam, lParam);
 }
 
+//굳이 쓰레드 돌릴 필요 없고 ToF받아서 값 확인 해보고 제대로된 값 받았으면 그때 유저 메세지 날려서 그리게 해도된다.
 //DWORD WINAPI DrawTrilateration(LPVOID lpParam)
 //{
 //	TriThread(&ywStruct);
 //	return 0;
 //}
-
 
 DWORD WINAPI GetToF(LPVOID ywStruct)
 {

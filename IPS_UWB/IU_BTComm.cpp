@@ -208,7 +208,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//ULONG              ulRetCode = 0;
 	SOCKET             BT_Socket = INVALID_SOCKET; //Socket도 핸들 처럼 음..ID 라고 생각하면된다? 값도 실제로 정수값을 가진다.
 	SOCKADDR_BTH       BT_SockAddr = { 0 };
-	char recvBuffer[IU_RECEIVE_DATA_LENGTH] = { 0 };
+	char recvBuffer[IU_RECEIVE_DATA_LENGTH + 1] = { 0 }; //버퍼의 마지막에 '\0' 추가 하기 위해 받을 데이터 길이보다 1길게 만든다.
 	int recvDataLength = 0;
 
 	BT_SockAddr.addressFamily = AF_BTH; // Setting address family to AF_BTH indicates winsock2 to use Bluetooth sockets
@@ -242,11 +242,54 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
 	wchar_t text[IU_RECEIVE_DATA_LENGTH];
 	int len = 0;
+	int bufferLen = IU_RECEIVE_DATA_LENGTH;
+
+
+	//싱크 맞추는 첫번째 방법
+	//while (1) {
+	//	recvDataLength = recv(BT_Socket, recvBuffer, bufferLen, 0);
+	//	switch (recvDataLength)
+	//	{
+	//	case 0:
+	//		//to make 'Socket connection' closed gracefully!
+	//		break;
+	//	case SOCKET_ERROR:
+	//		ywStruct->WSA_ErrorCode = WSAGetLastError();
+	//		break;
+	//	default:
+	//		if (recvBuffer[0] == '*' && recvBuffer[24] == '=') //싱크도 맞고 보낸 데이터가 정확히 다 온경우
+	//		{
+	//			bufferLen = IU_RECEIVE_DATA_LENGTH;
+	//			recvBuffer[IU_RECEIVE_DATA_LENGTH] = '\0';
+	//			len = strlen(recvBuffer);
+	//			mbstowcs(text, recvBuffer, IU_RECEIVE_DATA_LENGTH);
+	//			TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);
+	//			strcpy(ywStruct->str, recvBuffer);
+	//			parsing(recvBuffer, ywStruct);
+	//			::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
+	//		}
+	//		else // 싱크가 안 맞거나 중간에 데이터가 손실된 경우
+	//		{
+	//			if (recvBuffer[0] == '=') //만약 지금 읽어들인 Data가 엔드...뭐시기면 다음 수신될 데이터가 '*' 일 것이라고 예상 하기 때문에 버퍼의 크기를 늘려줌
+	//			{
+	//				bufferLen = IU_RECEIVE_DATA_LENGTH;
+	//			}
+	//			else 
+	//			{
+	//				bufferLen = 1;
+	//				flushBuffer(recvBuffer, recvDataLength + 1);
+	//			}
+	//		}
+	//	}
+	//}
+
+
+	//싱크 맞추는 두번째 방법. 첫번째랑 두번째랑 어떤게 더 효율적인지 모르겠다.
+	char recvBufferMethod2[IU_RECEIVE_DATA_LENGTH * 2 + 1];
+	char* pRecvBufferMethod2 = recvBufferMethod2;
 	while (1) {
 
-
-		recvDataLength = recv(BT_Socket, recvBuffer, IU_RECEIVE_DATA_LENGTH, 0);
-		recvBuffer[25] = '\0';
+		recvDataLength = recv(BT_Socket, recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2, 0);
 		switch (recvDataLength)
 		{
 		case 0:
@@ -256,23 +299,28 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 			ywStruct->WSA_ErrorCode = WSAGetLastError();
 			break;
 		default:
+			for (int i = 0; i < 26; i++){
+				if (*(pRecvBufferMethod2 + i) == '*' && *(pRecvBufferMethod2 + i + 24) == '='){
 
-			len = strlen(recvBuffer);
-			mbstowcs(text, recvBuffer, IU_RECEIVE_DATA_LENGTH);
-			TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);
+					strncpy(ywStruct->str, pRecvBufferMethod2 + i, sizeof(char) * 25);
+					parsing(ywStruct->str, ywStruct);
+					::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
 
-			if (recvBuffer[0] == '*' && recvDataLength == IU_RECEIVE_DATA_LENGTH){
-					
-				
-				
-				strcpy(ywStruct->str, recvBuffer);
-				parsing(recvBuffer, ywStruct);
-				//MessageBox(ywStruct->hWndMain, L"recv complete", L"recv complete", MB_OK);
-				::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
+
+					mbstowcs(text, ywStruct->str, IU_RECEIVE_DATA_LENGTH);
+					TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);
+					flushBuffer(recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2 + 1);
+					recvDataLength = recv(BT_Socket, recvBufferMethod2, i, 0);
+					break;
+				}
 			}
-			break;
+			flushBuffer(recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2 + 1);
+
 		}
 	}
+
+
+
 	ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
 	if (closesocket(BT_Socket) == SOCKET_ERROR) {
 		ywStruct->WSA_ErrorCode = WSAGetLastError();
@@ -298,6 +346,7 @@ CleanupAndExit:
 }
 
 void parsing(char* string, YWstruct* ywStruct){
+
 	int i = 0;
 	distance data;
 	int start_flag = 0;
@@ -372,4 +421,11 @@ void parsing(char* string, YWstruct* ywStruct){
 		i += 1;
 	}
 
+}
+
+void flushBuffer(char* buffer, int bufferSize)
+{
+	for (int i = 0; i < bufferSize; i++){
+		buffer[i] = '\0';
+	}
 }

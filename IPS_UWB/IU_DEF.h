@@ -9,7 +9,7 @@
 
 
 
-#define IU_RECEIVE_DATA_LENGTH		26		// length of the received data
+#define IU_RECEIVE_DATA_LENGTH		25		// length of the received data
 #define IU_BT_ADDR_LEN				17+1	// 6 two-digit hex values plus 5 colons and null charactor '\0'
 
 

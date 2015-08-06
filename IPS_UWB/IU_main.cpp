@@ -30,9 +30,14 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 	WndClass.style = CS_HREDRAW | CS_VREDRAW;
 	RegisterClass(&WndClass);
 
+
+
 	hWnd = CreateWindow(lpszClass, lpszClass, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT
 		, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, NULL, (HMENU)NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
+
+	//파일입출력
+	ywStruct.hFile = CreateFile(L"ToF_Data.txt", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);  //파일 입출력하기위해서 파일 오픈해놈
 
 	while (GetMessage(&Message, NULL, 0, 0)){
 		TranslateMessage(&Message);
@@ -51,15 +56,18 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	{
 	case WM_CREATE:
 		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID)); //ToF값 받는 Thread 등록
-	case WM_KEYDOWN:
-		keys[wParam] = TRUE;
 		return 0;
-		break;
+	case WM_KEYDOWN:
+		ywStruct.keys[wParam] = TRUE;
+		ywStruct.flag = 1;
+		MessageBox(hWnd, L"keyDown", L"keyDown", MB_OK);
+		return 0;
 	case WM_KEYUP:
-		keys[wParam] = FALSE;
+		ywStruct.keys[wParam] = FALSE;
 		return 0;
 	case WM_USER + 1:
 		//TriThread(&ywStruct);
+		return 0;
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);

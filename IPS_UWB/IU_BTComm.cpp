@@ -240,7 +240,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	}
 
 	ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
-	wchar_t text[IU_RECEIVE_DATA_LENGTH];
+	wchar_t text[IU_RECEIVE_DATA_LENGTH + 2]; // 마지막에 '\r\n' 넣기 위해 +1 사이즈 해줌 왜냐면 파일에 쓸때 데이터마다 개행 하려고!
 	int len = 0;
 	int bufferLen = IU_RECEIVE_DATA_LENGTH;
 
@@ -280,6 +280,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//				flushBuffer(recvBuffer, recvDataLength + 1);
 	//			}
 	//		}
+	//		break;
 	//	}
 	//}
 
@@ -287,6 +288,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//싱크 맞추는 두번째 방법. 첫번째랑 두번째랑 어떤게 더 효율적인지 모르겠다.
 	char recvBufferMethod2[IU_RECEIVE_DATA_LENGTH * 2 + 1];
 	char* pRecvBufferMethod2 = recvBufferMethod2;
+	MessageBox(ywStruct->hWndMain, L"recv start", L"recv start", MB_OK);
 	while (1) {
 
 		recvDataLength = recv(BT_Socket, recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2, 0);
@@ -294,34 +296,64 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		{
 		case 0:
 			//to make 'Socket connection' closed gracefully!
+			MessageBox(ywStruct->hWndMain, L"connection closed", L"connection closed", MB_OK);
+			goto CleanupAndExit;
 			break;
 		case SOCKET_ERROR:
+			MessageBox(ywStruct->hWndMain, L"connection error", L"connection error", MB_OK);
 			ywStruct->WSA_ErrorCode = WSAGetLastError();
 			break;
 		default:
+			int cnt = 0;
+			if (recvDataLength < IU_RECEIVE_DATA_LENGTH * 2){
+				MessageBox(ywStruct->hWndMain, L"not enough data", L"not enough data", MB_OK);
+				break;
+			}
 			for (int i = 0; i < 26; i++){
 				if (*(pRecvBufferMethod2 + i) == '*' && *(pRecvBufferMethod2 + i + 24) == '='){
 
-					strncpy(ywStruct->str, pRecvBufferMethod2 + i, sizeof(char) * 25);
+					MessageBox(ywStruct->hWndMain, L"sync!", L"sync!", MB_OK);
+					strncpy(ywStruct->str, pRecvBufferMethod2 + i, sizeof(wchar_t) * 25);
 					parsing(ywStruct->str, ywStruct);
-					::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
+
+					if (ywStruct->flag == 1){
+						if (cnt == 10) {
+							ywStruct->flag = 0;
+							cnt = 0;
+							MessageBox(ywStruct->hWndMain, L"Write 1000 data", L"Write 1000 data", MB_OK);
+						}
+						mbstowcs(text, ywStruct->str, IU_RECEIVE_DATA_LENGTH);
+						text[24] = 0x0d;
+						text[25] = 0x0a;
+						TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);//화면에 출력
 
 
-					mbstowcs(text, ywStruct->str, IU_RECEIVE_DATA_LENGTH);
-					TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);
+						strncpy(ywStruct->str, pRecvBufferMethod2 + i + 1, sizeof(wchar_t) * 7);
+						mbstowcs(text, ywStruct->str, 7);
+						text[7] = 0x0d;
+						text[8] = 0x0a;
+						DWORD dwWritten;
+						SetFilePointer(ywStruct->hFile, 0, NULL, FILE_END);
+						WriteFile(ywStruct->hFile, text, sizeof(wchar_t) * 9, &dwWritten, NULL);//거리데이터 기록으로 남기기 위해 파일출력
+						cnt++;
+					}
+
+
 					flushBuffer(recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2 + 1);
-					recvDataLength = recv(BT_Socket, recvBufferMethod2, i, 0);
+					recvDataLength = recv(BT_Socket, recvBufferMethod2, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
+
 					break;
 				}
 			}
 			flushBuffer(recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2 + 1);
-
+			break;
 		}
 	}
 
 
 
 	ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
+
 	if (closesocket(BT_Socket) == SOCKET_ERROR) {
 		ywStruct->WSA_ErrorCode = WSAGetLastError();
 		goto CleanupAndExit;
@@ -336,6 +368,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 
 
 CleanupAndExit:
+	MessageBox(ywStruct->hWndMain, L"connection failed", L"connection failed", MB_OK);
 	if (BT_Socket != INVALID_SOCKET)
 	{
 		closesocket(BT_Socket);
@@ -363,7 +396,7 @@ void parsing(char* string, YWstruct* ywStruct){
 	int index4 = 0;
 
 	while (1){
-		if (i > 30) i = 0;
+		if (i > 30) break;
 		if (*(string + i) == '*'){		// 시작 문자
 			start_flag = 1;
 			index = 1;
@@ -376,24 +409,9 @@ void parsing(char* string, YWstruct* ywStruct){
 			start_flag = 0;
 			index = 0;
 
-			//data.anchor1 = atof(anchor1);		// 받은 데이터 변환
-			//data.anchor2 = atof(anchor2);
-			//data.anchor3 = atof(anchor3);
-			//data.anchor4 = atof(anchor4);
-			ywStruct->distance_1 = atof(anchor1) * 20.0f;
-			ywStruct->distance_2 = atof(anchor2) * 20.0f;
-			ywStruct->distance_3 = atof(anchor3) * 20.0f;
-
-
-			//for (i = 0; i < index1; i++)		// anchor 문자열 초기화
-			//	anchor1[i] = 0;
-			//for (i = 0; i < index2; i++)
-			//	anchor2[i] = 0;
-			//for (i = 0; i < index3; i++)
-			//	anchor3[i] = 0;
-			//for (i = 0; i < index4; i++)
-			//	anchor4[i] = 0;
-
+			ywStruct->distance_1 = atof(anchor1);
+			ywStruct->distance_2 = atof(anchor2);
+			ywStruct->distance_3 = atof(anchor3);
 			break;
 		}
 		else if (*(string + i) == ','){		// Anchor 구분 문자

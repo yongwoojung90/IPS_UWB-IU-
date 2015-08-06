@@ -37,7 +37,9 @@ typedef struct _YWstruct{
 
 	HWND hWndMain;
 	HDC hDCMain;
-
+	HANDLE hFile;
+	bool keys[256];
+	int flag = 0;
 }YWstruct; // yongwoo struct 일단 작명할 꺼 생각안나서/ 이름 바꾸자!
 
 DWORD WINAPI GetToF(LPVOID ywStruct);

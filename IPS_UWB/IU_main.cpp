@@ -51,37 +51,59 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 {
 	HDC hdc;
 	DWORD ThreadID;
-	ywStruct.hWndMain = hWnd;
+	HWND button;
+	char Mes[100] = { 0 };
+	
 	switch (iMessage)
 	{
 	case WM_CREATE:
-		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID)); //ToF값 받는 Thread 등록
+		ywStruct.hWndMain = hWnd;
+		
+		button = CreateWindow(L"BUTTON", L"OK",
+			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+			100, 100, 100, 100,
+			hWnd, (HMENU)100, g_hIns, NULL);
+		//ShowWindow(button, SW_SHOW);
+
 		return 0;
+
+	case WM_COMMAND :
+		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID)); //ToF값 받는 Thread 등록
+		break;
 	case WM_KEYDOWN:
 		ywStruct.keys[wParam] = TRUE;
 		ywStruct.flag = 1;
 		MessageBox(hWnd, L"keyDown", L"keyDown", MB_OK);
 		return 0;
+	case WM_USER + 2:
+		hdc = GetDC(hWnd);
+		sprintf(Mes, "Len : %d", wParam);
+		TextOutA(hdc, 10, 30, Mes, strlen(Mes));
+		TextOutA(hdc, 10, 10, (char*)lParam, wParam);
+		ReleaseDC(hWnd, hdc);
+		break;
 	case WM_KEYUP:
 		ywStruct.keys[wParam] = FALSE;
 		return 0;
 	case WM_USER + 1:
 		//TriThread(&ywStruct);
+		MessageBoxA(NULL, (LPCSTR)wParam, NULL, MB_OK);
 		return 0;
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
 	}
+
 	return DefWindowProc(hWnd, iMessage, wParam, lParam);
 }
 
 //굳이 쓰레드 돌릴 필요 없고 ToF받아서 값 확인 해보고 제대로된 값 받았으면 그때 유저 메세지 날려서 그리게 해도된다.
-//DWORD WINAPI DrawTrilateration(LPVOID lpParam)
-//{
-//	TriThread(&ywStruct);
-//	return 0;
-//}
+DWORD WINAPI DrawTrilateration(LPVOID lpParam)
+{
+	TriThread(&ywStruct);
+	return 0;
+}
 
 DWORD WINAPI GetToF(LPVOID ywStruct)
 {

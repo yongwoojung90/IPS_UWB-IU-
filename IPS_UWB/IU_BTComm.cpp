@@ -208,8 +208,6 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//ULONG              ulRetCode = 0;
 	SOCKET             BT_Socket = INVALID_SOCKET; //Socket도 핸들 처럼 음..ID 라고 생각하면된다? 값도 실제로 정수값을 가진다.
 	SOCKADDR_BTH       BT_SockAddr = { 0 };
-	char recvBuffer[IU_RECEIVE_DATA_LENGTH + 1] = { 0 }; //버퍼의 마지막에 '\0' 추가 하기 위해 받을 데이터 길이보다 1길게 만든다.
-	int recvDataLength = 0;
 
 	BT_SockAddr.addressFamily = AF_BTH; // Setting address family to AF_BTH indicates winsock2 to use Bluetooth sockets
 	BT_SockAddr.btAddr = (BTH_ADDR)ululRemoteAddr;
@@ -240,15 +238,17 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	}
 
 	ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
-	wchar_t text[IU_RECEIVE_DATA_LENGTH + 2]; // 마지막에 '\r\n' 넣기 위해 +1 사이즈 해줌 왜냐면 파일에 쓸때 데이터마다 개행 하려고!
-	int len = 0;
-	int bufferLen = IU_RECEIVE_DATA_LENGTH;
+	wchar_t text[IU_READ_DATA_LENGTH + 2];
+
+	int recvLen = 0;
 
 
-	//싱크 맞추는 첫번째 방법
+	//싱크 맞추는 첫번째 방법 
+	//int len = 0;
+	//int bufferLen = IU_READ_DATA_LENGTH;
 	//while (1) {
-	//	recvDataLength = recv(BT_Socket, recvBuffer, bufferLen, 0);
-	//	switch (recvDataLength)
+	//	recvLen = recv(BT_Socket, midBuffer, bufferLen, 0);
+	//	switch (recvLen)
 	//	{
 	//	case 0:
 	//		//to make 'Socket connection' closed gracefully!
@@ -257,27 +257,27 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//		ywStruct->WSA_ErrorCode = WSAGetLastError();
 	//		break;
 	//	default:
-	//		if (recvBuffer[0] == '*' && recvBuffer[24] == '=') //싱크도 맞고 보낸 데이터가 정확히 다 온경우
+	//		if (midBuffer[0] == '*' && midBuffer[24] == '=') //싱크도 맞고 보낸 데이터가 정확히 다 온경우
 	//		{
-	//			bufferLen = IU_RECEIVE_DATA_LENGTH;
-	//			recvBuffer[IU_RECEIVE_DATA_LENGTH] = '\0';
-	//			len = strlen(recvBuffer);
-	//			mbstowcs(text, recvBuffer, IU_RECEIVE_DATA_LENGTH);
-	//			TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);
-	//			strcpy(ywStruct->str, recvBuffer);
-	//			parsing(recvBuffer, ywStruct);
-	//			::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
+	//			bufferLen = IU_READ_DATA_LENGTH;
+	//			midBuffer[IU_READ_DATA_LENGTH] = '\0';
+	//			len = strlen(midBuffer);
+	//			mbstowcs(text, midBuffer, IU_READ_DATA_LENGTH);
+	//			TextOut(ywStruct->hDCMain, 100, 100, text, IU_READ_DATA_LENGTH);
+	//			strcpy(ywStruct->str, midBuffer);
+	//			parsing(midBuffer, ywStruct);
+	//			::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(midBuffer), 0);
 	//		}
 	//		else // 싱크가 안 맞거나 중간에 데이터가 손실된 경우
 	//		{
-	//			if (recvBuffer[0] == '=') //만약 지금 읽어들인 Data가 엔드...뭐시기면 다음 수신될 데이터가 '*' 일 것이라고 예상 하기 때문에 버퍼의 크기를 늘려줌
+	//			if (midBuffer[0] == '=') //만약 지금 읽어들인 Data가 엔드...뭐시기면 다음 수신될 데이터가 '*' 일 것이라고 예상 하기 때문에 버퍼의 크기를 늘려줌
 	//			{
-	//				bufferLen = IU_RECEIVE_DATA_LENGTH;
+	//				bufferLen = IU_READ_DATA_LENGTH;
 	//			}
 	//			else 
 	//			{
 	//				bufferLen = 1;
-	//				flushBuffer(recvBuffer, recvDataLength + 1);
+	//				flushBuffer(midBuffer, recvLen + 1);
 	//			}
 	//		}
 	//		break;
@@ -286,67 +286,96 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 
 
 	//싱크 맞추는 두번째 방법. 첫번째랑 두번째랑 어떤게 더 효율적인지 모르겠다.
-	char recvBufferMethod2[IU_RECEIVE_DATA_LENGTH * 2 + 1];
-	char* pRecvBufferMethod2 = recvBufferMethod2;
-	MessageBox(ywStruct->hWndMain, L"recv start", L"recv start", MB_OK);
+	char midBuffer[IU_MIDDLE_BUFFER_LENGTH];
+	char* pMidBuffIdx = midBuffer; // pointer to Middle Buffer
+	int totalRecvLen = 0;
+
 	while (1) {
 
-		recvDataLength = recv(BT_Socket, recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2, 0);
-		switch (recvDataLength)
-		{
-		case 0:
-			//to make 'Socket connection' closed gracefully!
-			MessageBox(ywStruct->hWndMain, L"connection closed", L"connection closed", MB_OK);
-			goto CleanupAndExit;
-			break;
-		case SOCKET_ERROR:
-			MessageBox(ywStruct->hWndMain, L"connection error", L"connection error", MB_OK);
-			ywStruct->WSA_ErrorCode = WSAGetLastError();
-			break;
-		default:
-			int cnt = 0;
-			if (recvDataLength < IU_RECEIVE_DATA_LENGTH * 2){
-				MessageBox(ywStruct->hWndMain, L"not enough data", L"not enough data", MB_OK);
-				break;
-			}
-			for (int i = 0; i < 26; i++){
-				if (*(pRecvBufferMethod2 + i) == '*' && *(pRecvBufferMethod2 + i + 24) == '='){
-
-					MessageBox(ywStruct->hWndMain, L"sync!", L"sync!", MB_OK);
-					strncpy(ywStruct->str, pRecvBufferMethod2 + i, sizeof(wchar_t) * 25);
-					parsing(ywStruct->str, ywStruct);
-
-					if (ywStruct->flag == 1){
-						if (cnt == 10) {
-							ywStruct->flag = 0;
-							cnt = 0;
-							MessageBox(ywStruct->hWndMain, L"Write 1000 data", L"Write 1000 data", MB_OK);
-						}
-						mbstowcs(text, ywStruct->str, IU_RECEIVE_DATA_LENGTH);
-						text[24] = 0x0d;
-						text[25] = 0x0a;
-						TextOut(ywStruct->hDCMain, 100, 100, text, IU_RECEIVE_DATA_LENGTH);//화면에 출력
-
-
-						strncpy(ywStruct->str, pRecvBufferMethod2 + i + 1, sizeof(wchar_t) * 7);
-						mbstowcs(text, ywStruct->str, 7);
-						text[7] = 0x0d;
-						text[8] = 0x0a;
-						DWORD dwWritten;
-						SetFilePointer(ywStruct->hFile, 0, NULL, FILE_END);
-						WriteFile(ywStruct->hFile, text, sizeof(wchar_t) * 9, &dwWritten, NULL);//거리데이터 기록으로 남기기 위해 파일출력
-						cnt++;
-					}
-
-
-					flushBuffer(recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2 + 1);
-					recvDataLength = recv(BT_Socket, recvBufferMethod2, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
+		while (totalRecvLen < IU_MIDDLE_BUFFER_LENGTH){
+			recvLen = recv(BT_Socket, (char*)pMidBuffIdx, IU_MIDDLE_BUFFER_LENGTH - totalRecvLen, 0); //pMidBuffIdx 에 형변환 해주는 이유는 현재 행 이후의 연산과정에서 int로 형변환이 되기때문
+			if (recvLen > 0){
+				//if (recvLen > IU_MIDDLE_BUFFER_LENGTH - totalRecvLen){
+				//}
+				pMidBuffIdx += recvLen;
+				totalRecvLen += recvLen;
+				if (totalRecvLen >= IU_MIDDLE_BUFFER_LENGTH){
+					totalRecvLen = 0;
 
 					break;
 				}
 			}
-			flushBuffer(recvBufferMethod2, IU_RECEIVE_DATA_LENGTH * 2 + 1);
+			else if (recvLen == 0){
+				// socket connection has been closed gracefully
+				/*TO DO : 연결종료됬을 때 이후의 프로세스 위한 부분 구현*/
+				break;
+			}
+			else{
+				//SOCKET_ERROR!
+				//어떠한 이유에서 data를 recv하지 못했기 때문에 recv()함수가 SOCKET_ERROR를 리턴했다.
+				if (recvLen == SOCKET_ERROR){
+					ywStruct->WSA_ErrorCode = WSAGetLastError();
+					MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
+					break;
+				}
+			}
+		}
+		totalRecvLen = 0;
+
+
+		if (recvLen > 0){
+			char *temp = new char[50];
+			strncpy(temp, midBuffer, recvLen);
+			SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(recvLen), (LPARAM)(temp));
+
+			//for (int i = 0; i < 26; i++){
+			//	if (*(pMidBuffIdx + i) == '*' && *(pMidBuffIdx + i + 24) == '='){
+			//		//MessageBoxA(NULL, midBuffer, NULL, MB_OK);
+			//		//MessageBox(ywStruct->hWndMain, L"sync!", L"sync!", MB_OK);
+			//		strncpy(ywStruct->str, pMidBuffIdx + i, sizeof(wchar_t) * 25);
+
+			//		//strncpy(tempData, pMidBuffIdx + i, 50);
+			//		
+
+			//		//parsing(ywStruct->str, ywStruct);
+			//		//SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(midBuffer), 0);
+			//		//if (ywStruct->flag == 1){
+			//		//	if (cnt == 10) {
+			//		//		ywStruct->flag = 0;
+			//		//		cnt = 0;
+			//		//		MessageBox(ywStruct->hWndMain, L"Write 1000 data", L"Write 1000 data", MB_OK);
+			//		//	}
+			//		//	strncpy(ywStruct->str, pMidBuffIdx + i + 1, sizeof(wchar_t) * 7);
+			//		//	mbstowcs(text, ywStruct->str, 7);
+			//		//	text[7] = 0x0d;
+			//		//	text[8] = 0x0a;
+			//		//	DWORD dwWritten;
+			//		//	SetFilePointer(ywStruct->hFile, 0, NULL, FILE_END);
+			//		//	WriteFile(ywStruct->hFile, text, sizeof(wchar_t) * 9, &dwWritten, NULL);//거리데이터 기록으로 남기기 위해 파일출력
+			//		//	cnt++;
+			//		//}
+			//		//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
+			//		recvLen = recv(BT_Socket, midBuffer, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
+			//		break;
+			//	}
+			//}
+			//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
+		}
+		else if (recvLen == 0){
+			//to make 'Socket connection' closed gracefully!
+			MessageBox(ywStruct->hWndMain, L"connection closed", L"connection closed", MB_OK);
 			break;
+		}
+		else if (recvLen < 0){
+			if (recvLen == SOCKET_ERROR){
+				ywStruct->WSA_ErrorCode = WSAGetLastError();
+				MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
+				break;
+			}
+			else{
+				MessageBox(ywStruct->hWndMain, L"connection error", L"connection error", MB_OK);
+				break;
+			}
 		}
 	}
 
@@ -354,89 +383,72 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 
 	ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
 
+CleanupAndExit:
 	if (closesocket(BT_Socket) == SOCKET_ERROR) {
 		ywStruct->WSA_ErrorCode = WSAGetLastError();
-		goto CleanupAndExit;
+		wsprintf(ywStruct->error_msg, L"WSA Error (%d)", ywStruct->WSA_ErrorCode);
+		MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
 	}
 	else {
 		// Make the connection invalid regardless
 		BT_Socket = INVALID_SOCKET;
 		closesocket(BT_Socket);
 	}
-
-
-
-
-CleanupAndExit:
-	MessageBox(ywStruct->hWndMain, L"connection failed", L"connection failed", MB_OK);
-	if (BT_Socket != INVALID_SOCKET)
-	{
-		closesocket(BT_Socket);
-		BT_Socket = INVALID_SOCKET;
-	}
 	return 0;
-	//return ulRetCode;
 }
 
-void parsing(char* string, YWstruct* ywStruct){
+void parsing(char* midData, YWstruct* ywStruct){
 
 	int i = 0;
-	distance data;
-	int start_flag = 0;
+	int anchorID = 0;
+	char* pMidData = midData;
+	int flag = 0;
+	char distFromAnchor[4][10];
 	int index = 0;
+	int len = 0;
 
-	char anchor1[10];
-	char anchor2[10];
-	char anchor3[10];
-	char anchor4[10];
-
-	int index1 = 0;
-	int index2 = 0;
-	int index3 = 0;
-	int index4 = 0;
-
-	while (1){
-		if (i > 30) break;
-		if (*(string + i) == '*'){		// 시작 문자
-			start_flag = 1;
-			index = 1;
-			index1 = 0;
-			index2 = 0;
-			index3 = 0;
-			index4 = 0;
-		}
-		else if (*(string + i) == '='){		// 끝 문자
-			start_flag = 0;
+	for (i = 0; i < strlen(midData); i++){
+		if (*pMidData == '*'){
+			flag = 1;
+			anchorID = 1;
 			index = 0;
-
-			ywStruct->distance_1 = atof(anchor1);
-			ywStruct->distance_2 = atof(anchor2);
-			ywStruct->distance_3 = atof(anchor3);
+			len = strlen(midData) - i;
 			break;
 		}
-		else if (*(string + i) == ','){		// Anchor 구분 문자
-			index += 1;
-		}
-		else{
-			if (index == 1){		// Anchor1
-				anchor1[index1] = *(string + i);
-				index1 += 1;
-			}
-			else if (index == 2){		// Anchor2
-				anchor2[index2] = *(string + i);
-				index2 += 1;
-			}
-			else if (index == 3){		// Anchor3
-				anchor3[index3] = *(string + i);
-				index3 += 1;
-			}
-			else if (index == 4){		// Anchor4
-				anchor4[index4] = *(string + i);
-				index4 += 1;
-			}
-		}
+		pMidData++;
+	}
+	if (flag == 0) return; //받은 데이터에 '*'가 없으므로 parsing하지 않고 나간다.
 
-		i += 1;
+	for (i = 0; i < len && flag == 1; i++){
+		switch (*pMidData)
+		{
+		case ',': //tokenizer
+			anchorID += 1;
+			index = 0;
+			break;
+		case '=': //end
+
+			//Transform ToF into real distance(cm)
+			ywStruct->distance_1 = atof(distFromAnchor[1])*84.896 - 35.1868;
+			ywStruct->distance_2 = atof(distFromAnchor[2])*84.896 - 35.1868;
+			ywStruct->distance_3 = atof(distFromAnchor[3])*84.896 - 35.1868;
+			flag = 0;
+			return; //사실 for문 조건에 flag == 1 도 없에고 이 바로윗줄에서 flag = 0;도 없에도 return; 때문에 나가진다.
+			break;
+		default:
+			if ('0' <= *pMidData && *pMidData <= '9'){ //when receive error free data
+				distFromAnchor[anchorID - 1][index] = *pMidData;
+				index += 1;
+			}
+			else{
+				//TO DO
+				//통신과정에서 Data에 노이즈가 발생해서 (error free 하지 못하게) 
+				//숫자 이외의 값이 수신되면 이 데이터는 쓰면 안된다.
+				//그런데.. 그럴 일이 없을 거같긴해서 실제로 구현하지는 않는다.
+				break;
+			}
+		}
+		pMidData++;
 	}
 
 }

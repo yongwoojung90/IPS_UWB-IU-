@@ -27,7 +27,7 @@ typedef struct _YWstruct{
 
 	char BT_Name[20];		// Tag's Bluetooth name
 	char BT_Addr[17 + 1];	// Tag's Bluetooth MAC Address ( e.g  "00:19:01:37:BF:2E\0" )
-	char str[IU_RECEIVE_DATA_LENGTH];			// temporary member
+	char str[IU_MIDDLE_BUFFER_LENGTH];			// temporary member
 	float distance_1;		// distance from Anchor1 to Tag
 	float distance_2;		// distance from Anchor2 to Tag
 	float distance_3;		// distance from Anchor3 to Tag
@@ -40,6 +40,7 @@ typedef struct _YWstruct{
 	HANDLE hFile;
 	bool keys[256];
 	int flag = 0;
+	wchar_t error_msg[20];
 }YWstruct; // yongwoo struct 일단 작명할 꺼 생각안나서/ 이름 바꾸자!
 
 DWORD WINAPI GetToF(LPVOID ywStruct);

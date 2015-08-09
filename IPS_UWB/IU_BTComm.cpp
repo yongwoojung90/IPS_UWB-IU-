@@ -289,8 +289,8 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	char midBuffer[IU_MIDDLE_BUFFER_LENGTH];
 	char* pMidBuffIdx = midBuffer; // pointer to Middle Buffer
 	int totalRecvLen = 0;
-
-	while (1) {
+	int flag = 1;
+	while (flag) {
 
 		while (totalRecvLen < IU_MIDDLE_BUFFER_LENGTH){
 			recvLen = recv(BT_Socket, (char*)pMidBuffIdx, IU_MIDDLE_BUFFER_LENGTH - totalRecvLen, 0); //pMidBuffIdx 에 형변환 해주는 이유는 현재 행 이후의 연산과정에서 int로 형변환이 되기때문
@@ -300,14 +300,18 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 				pMidBuffIdx += recvLen;
 				totalRecvLen += recvLen;
 				if (totalRecvLen >= IU_MIDDLE_BUFFER_LENGTH){
+					parsing(midBuffer, ywStruct);
+					SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
+					SendMessage(ywStruct->hWndMain, WM_USER + 1, NULL, NULL);
 					totalRecvLen = 0;
-
+					pMidBuffIdx = midBuffer;
 					break;
 				}
 			}
 			else if (recvLen == 0){
 				// socket connection has been closed gracefully
 				/*TO DO : 연결종료됬을 때 이후의 프로세스 위한 부분 구현*/
+				
 				break;
 			}
 			else{
@@ -316,6 +320,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 				if (recvLen == SOCKET_ERROR){
 					ywStruct->WSA_ErrorCode = WSAGetLastError();
 					MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
+					flag = 0;
 					break;
 				}
 			}
@@ -323,60 +328,55 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		totalRecvLen = 0;
 
 
-		if (recvLen > 0){
-			char *temp = new char[50];
-			strncpy(temp, midBuffer, recvLen);
-			SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(recvLen), (LPARAM)(temp));
-
-			//for (int i = 0; i < 26; i++){
-			//	if (*(pMidBuffIdx + i) == '*' && *(pMidBuffIdx + i + 24) == '='){
-			//		//MessageBoxA(NULL, midBuffer, NULL, MB_OK);
-			//		//MessageBox(ywStruct->hWndMain, L"sync!", L"sync!", MB_OK);
-			//		strncpy(ywStruct->str, pMidBuffIdx + i, sizeof(wchar_t) * 25);
-
-			//		//strncpy(tempData, pMidBuffIdx + i, 50);
-			//		
-
-			//		//parsing(ywStruct->str, ywStruct);
-			//		//SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(midBuffer), 0);
-			//		//if (ywStruct->flag == 1){
-			//		//	if (cnt == 10) {
-			//		//		ywStruct->flag = 0;
-			//		//		cnt = 0;
-			//		//		MessageBox(ywStruct->hWndMain, L"Write 1000 data", L"Write 1000 data", MB_OK);
-			//		//	}
-			//		//	strncpy(ywStruct->str, pMidBuffIdx + i + 1, sizeof(wchar_t) * 7);
-			//		//	mbstowcs(text, ywStruct->str, 7);
-			//		//	text[7] = 0x0d;
-			//		//	text[8] = 0x0a;
-			//		//	DWORD dwWritten;
-			//		//	SetFilePointer(ywStruct->hFile, 0, NULL, FILE_END);
-			//		//	WriteFile(ywStruct->hFile, text, sizeof(wchar_t) * 9, &dwWritten, NULL);//거리데이터 기록으로 남기기 위해 파일출력
-			//		//	cnt++;
-			//		//}
-			//		//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
-			//		recvLen = recv(BT_Socket, midBuffer, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
-			//		break;
-			//	}
-			//}
-			//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
-		}
-		else if (recvLen == 0){
-			//to make 'Socket connection' closed gracefully!
-			MessageBox(ywStruct->hWndMain, L"connection closed", L"connection closed", MB_OK);
-			break;
-		}
-		else if (recvLen < 0){
-			if (recvLen == SOCKET_ERROR){
-				ywStruct->WSA_ErrorCode = WSAGetLastError();
-				MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
-				break;
-			}
-			else{
-				MessageBox(ywStruct->hWndMain, L"connection error", L"connection error", MB_OK);
-				break;
-			}
-		}
+		//if (recvLen > 0){
+		//	char *temp = new char[50];
+		//	strncpy(temp, midBuffer, recvLen);
+		//	//for (int i = 0; i < 26; i++){
+		//	//	if (*(pMidBuffIdx + i) == '*' && *(pMidBuffIdx + i + 24) == '='){
+		//	//		//MessageBoxA(NULL, midBuffer, NULL, MB_OK);
+		//	//		//MessageBox(ywStruct->hWndMain, L"sync!", L"sync!", MB_OK);
+		//	//		strncpy(ywStruct->str, pMidBuffIdx + i, sizeof(wchar_t) * 25);
+		//	//		//strncpy(tempData, pMidBuffIdx + i, 50
+		//	//		//parsing(ywStruct->str, ywStruct);
+		//	//		//SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(midBuffer), 0);
+		//	//		//if (ywStruct->flag == 1){
+		//	//		//	if (cnt == 10) {
+		//	//		//		ywStruct->flag = 0;
+		//	//		//		cnt = 0;
+		//	//		//		MessageBox(ywStruct->hWndMain, L"Write 1000 data", L"Write 1000 data", MB_OK);
+		//	//		//	}
+		//	//		//	strncpy(ywStruct->str, pMidBuffIdx + i + 1, sizeof(wchar_t) * 7);
+		//	//		//	mbstowcs(text, ywStruct->str, 7);
+		//	//		//	text[7] = 0x0d;
+		//	//		//	text[8] = 0x0a;
+		//	//		//	DWORD dwWritten;
+		//	//		//	SetFilePointer(ywStruct->hFile, 0, NULL, FILE_END);
+		//	//		//	WriteFile(ywStruct->hFile, text, sizeof(wchar_t) * 9, &dwWritten, NULL);//거리데이터 기록으로 남기기 위해 파일출력
+		//	//		//	cnt++;
+		//	//		//}
+		//	//		//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
+		//	//		recvLen = recv(BT_Socket, midBuffer, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
+		//	//		break;
+		//	//	}
+		//	//}
+		//	//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
+		//}
+		//else if (recvLen == 0){
+		//	//to make 'Socket connection' closed gracefully!
+		//	MessageBox(ywStruct->hWndMain, L"connection closed", L"connection closed", MB_OK);
+		//	break;
+		//}
+		//else if (recvLen < 0){
+		//	if (recvLen == SOCKET_ERROR){
+		//		ywStruct->WSA_ErrorCode = WSAGetLastError();
+		//		MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
+		//		break;
+		//	}
+		//	else{
+		//		MessageBox(ywStruct->hWndMain, L"connection error", L"connection error", MB_OK);
+		//		break;
+		//	}
+		//}
 	}
 
 
@@ -436,8 +436,8 @@ void parsing(char* midData, YWstruct* ywStruct){
 			return; //사실 for문 조건에 flag == 1 도 없에고 이 바로윗줄에서 flag = 0;도 없에도 return; 때문에 나가진다.
 			break;
 		default:
-			if ('0' <= *pMidData && *pMidData <= '9'){ //when receive error free data
-				distFromAnchor[anchorID - 1][index] = *pMidData;
+			if (('0' <= *pMidData && *pMidData <= '9') || *pMidData == '.'){ //when receive error free data
+				distFromAnchor[anchorID][index] = *pMidData;
 				index += 1;
 			}
 			else{

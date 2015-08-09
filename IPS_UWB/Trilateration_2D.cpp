@@ -3,11 +3,11 @@
 #include <Windows.h>
 double r1, r2, r3;
 
-CvPoint Anchor1 = cvPoint(0, 0);
-CvPoint Anchor2 = cvPoint(200, 0);
-CvPoint Anchor3 = cvPoint(0, 200);
+CvPoint Anchor1;
+CvPoint Anchor2;
+CvPoint Anchor3;
 
-IplImage* bckgrd = cvCreateImage(cvSize(500, 500), IPL_DEPTH_8U, 3);
+IplImage* bckgrd;
 
 double square(double x)
 {
@@ -73,29 +73,29 @@ void TriThread(YWstruct* ywStruct)
 	r1 = 0;
 	r2 = 0;
 	r3 = 0;
-	//IplImage* bckgrd = cvLoadImage("bckgrd.jpg", CV_LOAD_IMAGE_UNCHANGED);
+	bckgrd = cvCreateImage(cvSize(500, 500), IPL_DEPTH_8U, 3);
+	Anchor1 = cvPoint(0, 0);
+	Anchor2 = cvPoint(300, 0);
+	Anchor3 = cvPoint(0, 300);
 	cvNamedWindow("trilateration");
 
 	CvPoint tag = cvPoint(0,0);
-	if (r1 < 0) {
-		MessageBox(ywStruct->hWndMain, L"-1", L"-1", MB_OK); return;
-	}
-	if (r2 < 0) {
-		MessageBox(ywStruct->hWndMain, L"-1", L"-1", MB_OK); return;
-	}
-	if (r3 < 0) {
-		MessageBox(ywStruct->hWndMain, L"-1", L"-1", MB_OK); return;
-	}
+
 	r1 = ywStruct->distance_1;
 	r2 = ywStruct->distance_2;
 	r3 = ywStruct->distance_3;
-
+	if (r1 < 0) { return;
+	}
+	if (r2 < 0) {return;
+	}
+	if (r3 < 0) {return;
+	}
 
 	tag = Trilateration_2D(Anchor1, Anchor2, Anchor3, r1, r2, r3);
 
 
 	cvSet(bckgrd, CV_RGB(255, 255, 255));
-	cvRectangle(bckgrd, Anchor1, cvPoint(200, 200), CV_RGB(0, 0, 0));
+	cvRectangle(bckgrd, Anchor1, cvPoint(300, 300), CV_RGB(0, 0, 0));
 
 
 	cvCircle(bckgrd, Anchor1, r1, CV_RGB(255, 0, 0), 2);
@@ -113,11 +113,4 @@ void TriThread(YWstruct* ywStruct)
 	//printf("x = %3d, y = %3d ", x, y);
 	//printf(" | calculated x,y : x = %3d, y = %3d\n", tag.x, tag.y);
 	cvShowImage("trilateration", bckgrd);
-
-
-
-	//cvShowImage("trilateration", bckgrd);
-	//cvWaitKey(0);
-	//cvReleaseImage(&bckgrd);
-
 }

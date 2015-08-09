@@ -86,8 +86,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		ywStruct.keys[wParam] = FALSE;
 		return 0;
 	case WM_USER + 1:
-		//TriThread(&ywStruct);
-		MessageBoxA(NULL, (LPCSTR)wParam, NULL, MB_OK);
+		TriThread(&ywStruct);
 		return 0;
 		break;
 	case WM_DESTROY:

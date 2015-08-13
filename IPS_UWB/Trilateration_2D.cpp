@@ -75,8 +75,8 @@ void TriThread(YWstruct* ywStruct)
 	r3 = 0;
 	bckgrd = cvCreateImage(cvSize(500, 500), IPL_DEPTH_8U, 3);
 	Anchor1 = cvPoint(0, 0);
-	Anchor2 = cvPoint(300, 0);
-	Anchor3 = cvPoint(0, 300);
+	Anchor2 = cvPoint(500, 0); 
+	Anchor3 = cvPoint(0, 500);
 	cvNamedWindow("trilateration");
 
 	CvPoint tag = cvPoint(0,0);
@@ -95,7 +95,7 @@ void TriThread(YWstruct* ywStruct)
 
 
 	cvSet(bckgrd, CV_RGB(255, 255, 255));
-	cvRectangle(bckgrd, Anchor1, cvPoint(300, 300), CV_RGB(0, 0, 0));
+	cvRectangle(bckgrd, Anchor1, cvPoint(500, 500), CV_RGB(0, 0, 0));
 
 
 	cvCircle(bckgrd, Anchor1, r1, CV_RGB(255, 0, 0), 2);
@@ -110,7 +110,5 @@ void TriThread(YWstruct* ywStruct)
 	cvCircle(bckgrd, Anchor3, 3, CV_RGB(0, 0, 255), 2);
 	cvLine(bckgrd, Anchor3, tag, CV_RGB(0, 0, 255), 2);
 
-	//printf("x = %3d, y = %3d ", x, y);
-	//printf(" | calculated x,y : x = %3d, y = %3d\n", tag.x, tag.y);
 	cvShowImage("trilateration", bckgrd);
 }

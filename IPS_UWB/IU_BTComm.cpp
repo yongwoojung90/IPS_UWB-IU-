@@ -303,6 +303,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 					parsing(midBuffer, ywStruct);
 					SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
 					SendMessage(ywStruct->hWndMain, WM_USER + 1, NULL, NULL);
+					SendMessage(ywStruct->hWndMain, WM_USER + 3, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
 					totalRecvLen = 0;
 					pMidBuffIdx = midBuffer;
 					break;

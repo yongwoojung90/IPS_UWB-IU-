@@ -1,5 +1,3 @@
-
-
 #include <Windows.h>
 
 //Error Code

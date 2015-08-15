@@ -198,9 +198,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		return 0;
 	case WM_USER + 2:
 		hDC = GetDC(hWnd);
-		sprintf(Mes, "Len : %d", wParam);
+		sprintf(Mes, "data : %s", (char*)wParam);
 		TextOutA(hDC, 10, 30, Mes, strlen(Mes));
-		TextOutA(hDC, 10, 10, (char*)lParam, wParam);
+		//TextOutA(hDC, 10, 10, (char*)lParam, wParam);
 		ReleaseDC(hWnd, hDC);
 		return 0;
 	case WM_USER + 3:

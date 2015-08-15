@@ -31,7 +31,9 @@ typedef struct _YWstruct{
 	float distance_1;		// distance from Anchor1 to Tag
 	float distance_2;		// distance from Anchor2 to Tag
 	float distance_3;		// distance from Anchor3 to Tag
-
+	float width = 0.0;		int cnt_width = 0;
+	float height = 0.0;		int cnt_height = 0;
+	float diagonal = 0.0;	int cnt_diagonal = 0;
 	int WSA_ErrorCode;		//Windows Socket Error Code, return value of WSAGetLastError();
 	int IU_ErrorCode;				//return value
 
@@ -39,6 +41,7 @@ typedef struct _YWstruct{
 	HDC hDCMain;
 	HANDLE hFile;
 	bool keys[256];
+	int draw_flag = 0;
 	int flag = 0;
 	wchar_t error_msg[20];
 }YWstruct; // yongwoo struct 일단 작명할 꺼 생각안나서/ 이름 바꾸자!
@@ -63,6 +66,11 @@ typedef struct __distance{
 //////////////////////////////////////
 
 
+/////////////////////////////////////
+#define BUFFER_LENGTH 9
+void shift_buf(float newData, float* buf);
+float filtering(float newData, float* dataBuf, float* weightArr);
+/////////////////////////////////////
 
 
 //////////////////////////////////////

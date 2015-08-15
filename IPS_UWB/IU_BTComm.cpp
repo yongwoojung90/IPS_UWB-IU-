@@ -1,5 +1,6 @@
 #include "IU_BTComm.h"
 
+float buffer[3][BUFFER_LENGTH] = { 0, };
 
 // This(NameToBtgAddr()) just redundant!!!!
 // TODO: use inquiry timeout SDP_DEFAULT_INQUIRY_SECONDS
@@ -301,8 +302,8 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 				totalRecvLen += recvLen;
 				if (totalRecvLen >= IU_MIDDLE_BUFFER_LENGTH){
 					parsing(midBuffer, ywStruct);
-					SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
-					SendMessage(ywStruct->hWndMain, WM_USER + 1, NULL, NULL);
+					//SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
+					if(ywStruct->draw_flag == 1) SendMessage(ywStruct->hWndMain, WM_USER + 1, (WPARAM)ywStruct->width, (LPARAM)ywStruct->height);
 					SendMessage(ywStruct->hWndMain, WM_USER + 3, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
 					totalRecvLen = 0;
 					pMidBuffIdx = midBuffer;
@@ -312,7 +313,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 			else if (recvLen == 0){
 				// socket connection has been closed gracefully
 				/*TO DO : 연결종료됬을 때 이후의 프로세스 위한 부분 구현*/
-				
+
 				break;
 			}
 			else{
@@ -380,8 +381,6 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		//}
 	}
 
-
-
 	ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
 
 CleanupAndExit:
@@ -408,6 +407,13 @@ void parsing(char* midData, YWstruct* ywStruct){
 	int index = 0;
 	int len = 0;
 
+	////////////////////////////////////////
+	float weightArr[BUFFER_LENGTH + 1] = { 0.06, 0.06, 0.06, 0.06, 0.06, 0.07, 0.08, 0.13, 0.18, 0.24 };
+
+	float newData = 0.0;
+	float resData = 0.0;
+	////////////////////////////////////////
+
 	for (i = 0; i < strlen(midData); i++){
 		if (*pMidData == '*'){
 			flag = 1;
@@ -416,11 +422,37 @@ void parsing(char* midData, YWstruct* ywStruct){
 			len = strlen(midData) - i;
 			break;
 		}
+		else if (*pMidData == '!'){
+			flag = 2;
+			anchorID = 1;
+			index = 0;
+			len = strlen(midData) - i;
+			break;
+		}
+		else if (*pMidData == '@'){
+			flag = 3;
+			anchorID = 1;
+			index = 0;
+			len = strlen(midData) - i;
+			break;
+		}
+		else if (*pMidData == '#'){
+			flag = 4;
+			anchorID = 1;
+			index = 0;
+			len = strlen(midData) - i;
+			break;
+		}
 		pMidData++;
 	}
-	if (flag == 0) return; //받은 데이터에 '*'가 없으므로 parsing하지 않고 나간다.
+	if (flag == 0) return; //받은 데이터에 '*'또는 '!' , '@', '#'가 없으므로 parsing하지 않고 나간다.
 
-	for (i = 0; i < len && flag == 1; i++){
+
+	float temp = 0.0;
+	float filtered = 0.0;
+	char realDistStr[50] = { '\0', };
+
+	for (i = 0; i < len && flag != 0; i++){
 		switch (*pMidData)
 		{
 		case ',': //tokenizer
@@ -428,14 +460,75 @@ void parsing(char* midData, YWstruct* ywStruct){
 			index = 0;
 			break;
 		case '=': //end
-
 			//Transform ToF into real distance(cm)
-			ywStruct->distance_1 = atof(distFromAnchor[1])*84.896 - 35.1868;
-			ywStruct->distance_2 = atof(distFromAnchor[2])*84.896 - 35.1868;
-			ywStruct->distance_3 = atof(distFromAnchor[3])*84.896 - 35.1868;
-			flag = 0;
-			return; //사실 for문 조건에 flag == 1 도 없에고 이 바로윗줄에서 flag = 0;도 없에도 return; 때문에 나가진다.
-			break;
+			if (flag == 1){
+				temp = atof(distFromAnchor[1]);
+				filtered = filtering(temp, buffer[0], weightArr);
+				if (filtered != 0)
+					ywStruct->distance_1 = filtered*84.896 - 35.1868;
+
+				temp = atof(distFromAnchor[2]);
+				filtered = filtering(temp, buffer[1], weightArr);
+				if (filtered != 0)
+					ywStruct->distance_2 = filtered*84.896 - 35.1868;
+
+				temp = atof(distFromAnchor[3]);
+				filtered = filtering(temp, buffer[2], weightArr);
+				if (filtered != 0)
+					ywStruct->distance_3 = filtered*84.896 - 35.1868;
+
+				sprintf(realDistStr, "%f, %f, %f", ywStruct->distance_1, ywStruct->distance_2, ywStruct->distance_3);
+				SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(realDistStr), NULL);
+				flag = 0;
+				return; //사실 for문 조건에 flag == 1 도 없에고 이 바로윗줄에서 flag = 0;도 없에도 return; 때문에 나가진다.
+				break;
+			}
+			else if (flag == 2){
+				temp = atof(distFromAnchor[2]);
+				filtered = filtering(temp, buffer[1], weightArr);
+				if (filtered != 0){
+					ywStruct->width += filtered*84.896 - 35.1868; //width (anchor1 <-> anchor2)
+					ywStruct->cnt_width++;
+				}
+				temp = atof(distFromAnchor[3]);
+				filtered = filtering(temp, buffer[2], weightArr);
+				if (filtered != 0){
+					ywStruct->height += filtered*84.896 - 35.1868; //height (anchor1 <-> anchor3)
+					ywStruct->cnt_height++;
+				}
+			}
+			else if (flag == 3){
+				temp = atof(distFromAnchor[1]);
+				filtered = filtering(temp, buffer[0], weightArr);
+				if (filtered != 0){
+					ywStruct->width += filtered*84.896 - 35.1868; // width (anchor2 <-> anchor1)
+					ywStruct->cnt_width++;
+				}
+				temp = atof(distFromAnchor[3]);
+				filtered = filtering(temp, buffer[2], weightArr);
+				if (filtered != 0){
+					ywStruct->diagonal += filtered*84.896 - 35.1868; // diagonal length (anchor2 <->anchor3)
+					ywStruct->cnt_diagonal++;
+				}
+			}
+			else if (flag == 4){
+				temp = atof(distFromAnchor[1]);
+				filtered = filtering(temp, buffer[0], weightArr);
+				if (filtered != 0){
+					ywStruct->height += filtered*84.896 - 35.1868; // height (anchor3 <-> anchor1)
+					ywStruct->cnt_height++;
+				}
+				temp = atof(distFromAnchor[2]);
+				filtered = filtering(temp, buffer[1], weightArr); 
+				if (filtered != 0){
+					ywStruct->diagonal += filtered*84.896 - 35.1868; //diagonal length (anchor3 <-> anchor2)
+					ywStruct->cnt_diagonal++;
+				}
+
+				ywStruct->width = ywStruct->width / (float)ywStruct->cnt_width;
+				ywStruct->width = ywStruct->height / (float)ywStruct->cnt_height;
+				ywStruct->draw_flag = 1;
+			}
 		default:
 			if (('0' <= *pMidData && *pMidData <= '9') || *pMidData == '.'){ //when receive error free data
 				distFromAnchor[anchorID][index] = *pMidData;
@@ -459,4 +552,33 @@ void flushBuffer(char* buffer, int bufferSize)
 	for (int i = 0; i < bufferSize; i++){
 		buffer[i] = '\0';
 	}
+}
+
+
+void shift_buf(float newData, float* dataBuf)
+{
+	int i = 0;
+	float temp = 0.0;
+	for (i = 1; i < BUFFER_LENGTH; i++){
+		temp = dataBuf[i];
+		dataBuf[i - 1] = temp;
+	}
+	dataBuf[i - 1] = newData;
+}
+float filtering(float newData, float* dataBuf, float* weightArr)
+{
+	float retVal = 0.0;
+	int i = 0;
+	/*filtering*/
+	if (dataBuf[0] != 0.0){
+		for (i = 0; i < BUFFER_LENGTH; i++){
+			retVal += (weightArr[i] * dataBuf[i]);
+		}
+		retVal += weightArr[i] * newData;
+		shift_buf(retVal, dataBuf);
+	}
+	else{
+		shift_buf(newData, dataBuf);
+	}
+	return retVal;
 }

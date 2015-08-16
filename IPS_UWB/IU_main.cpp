@@ -118,7 +118,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 
 		button = CreateWindow(L"BUTTON", L"OK",
 			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
-			100, 100, 100, 100,
+			0, 0, 10, 10,
 			hWnd, (HMENU)100, g_hInstance, NULL);
 		//ShowWindow(button, SW_SHOW);
 		return 0;

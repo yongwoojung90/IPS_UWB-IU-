@@ -3,7 +3,7 @@
 #include <Windows.h>
 
 double r1, r2, r3;
-
+float temp1, temp2, temp3;
 CvPoint Anchor1;
 CvPoint Anchor2;
 CvPoint Anchor3;
@@ -18,10 +18,12 @@ double square(double x)
 CvPoint Trilateration_2D(CvPoint Anchor1, CvPoint Anchor2, CvPoint Anchor3, double r1, double r2, double r3)
 {
 	CvPoint tag = cvPoint(0, 0);
-	double d = Anchor2.x - Anchor1.x;
-	double i = Anchor3.x;
-	double j = Anchor3.y;
-
+	double d = Anchor2.x - Anchor1.x; //width
+	double i = Anchor3.x; //0
+	double j = Anchor3.y; //height
+	// r1 == ywStruct->distance_1
+	// r2 == ywStruct->distance_2
+	// 센치미터값
 	double x, y;
 
 	x = (square(r1) - square(r2) + square(d)) / (2 * d);
@@ -77,9 +79,11 @@ void TriThread(YWstruct* ywStruct)
 	int width;
 	int height;
 	if (ywStruct->draw_flag == 1){
-		width = ywStruct->width;
-		height = ywStruct->height;
-		ywStruct->draw_flag = 0;
+		//width = ywStruct->width;
+		//height = ywStruct->height;
+		//ywStruct->draw_flag = 0;
+		width = 1000;
+		height = 1000;
 	}
 	bckgrd = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
 	Anchor1 = cvPoint(0, 0);
@@ -89,12 +93,22 @@ void TriThread(YWstruct* ywStruct)
 
 	CvPoint tag = cvPoint(0, 0);
 
-
-
-
+	float threshold = 0.15;
+	
+	//if (temp1 != 0.0 && fabs(temp1 - r1) > threshold){
+	//	r1 = ywStruct->distance_1;
+	//}
+	//if (temp2 != 0.0 && fabs(temp2 - r2) > threshold){
+	//	r2 = ywStruct->distance_2;
+	//}
+	//if (temp3 != 0.0 && fabs(temp3 - r3) > threshold){
+	//	r3 = ywStruct->distance_3;
+	//}
 	r1 = ywStruct->distance_1;
 	r2 = ywStruct->distance_2;
 	r3 = ywStruct->distance_3;
+	temp1 = r1; temp2 = r2; temp3 = r3;
+
 	if (r1 < 0) {
 		return;
 	}

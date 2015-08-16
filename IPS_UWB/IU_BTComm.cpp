@@ -476,7 +476,7 @@ void parsing(char* midData, YWstruct* ywStruct){
 				filtered = filtering(temp, buffer[2], weightArr);
 				if (filtered != 0)
 					ywStruct->distance_3 = filtered*84.896 - 35.1868;
-
+				ywStruct->draw_flag = 1;
 				sprintf(realDistStr, "%f, %f, %f", ywStruct->distance_1, ywStruct->distance_2, ywStruct->distance_3);
 				SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(realDistStr), NULL);
 				flag = 0;

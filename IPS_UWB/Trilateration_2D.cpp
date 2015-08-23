@@ -79,11 +79,11 @@ void TriThread(YWstruct* ywStruct)
 	int width;
 	int height;
 	if (ywStruct->draw_flag == 1){
-		//width = ywStruct->width;
-		//height = ywStruct->height;
-		//ywStruct->draw_flag = 0;
-		width = 1000;
-		height = 1000;
+		width = ywStruct->width;
+		height = ywStruct->height;
+		ywStruct->draw_flag = 0;
+		//width = 290;
+		//height = 290;
 	}
 	bckgrd = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
 	Anchor1 = cvPoint(0, 0);
@@ -139,4 +139,5 @@ void TriThread(YWstruct* ywStruct)
 	cvLine(bckgrd, Anchor3, tag, CV_RGB(0, 0, 255), 2);
 
 	cvShowImage("trilateration", bckgrd);
+	cvReleaseImage(&bckgrd);
 }

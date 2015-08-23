@@ -12,11 +12,19 @@ YWstruct ywStruct;
 
 bool keys[256];
 
+int writeFlag = 0;
+int writeCount = 0;
+
+
+float tempDist1;
+
+
+
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-GLvoid KillGLWindow(GLvoid);
+GLvoid KillGLWindow();
 BOOL CreateGLWindow(wchar_t* title, int width, int height, int bits, bool fullscreenflag);
-int DrawGLScene(GLvoid);
-int InitGL(GLvoid);
+int DrawGLScene();
+int InitGL();
 GLvoid ReSizeGLScene(GLsizei width, GLsizei height);
 
 #ifndef GET_X_LPARAM
@@ -68,7 +76,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 	ywStruct.hFile = CreateFile(L"ToF_Data.txt", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);  //파일 입출력하기위해서 파일 오픈해놈
 
 
-	if (!CreateGLWindow(L"yongwoo creative project", 640, 480, 16, fullscreen))
+	if (!CreateGLWindow(L"yongwoo creative project", 650, 480, 16, fullscreen))
 	{
 		return 0; // Quit If Window Was Not Created
 	}
@@ -92,7 +100,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 				KillGLWindow();
 				fullscreen = !fullscreen;
 				// Recreate Our OpenGL Window
-				if (!CreateGLWindow(L"yongwoo creative project", 640, 480, 16, &fullscreen)) break; // Quit If Window Was Not Created
+				if (!CreateGLWindow(L"yongwoo creative project", 650, 480, 16, &fullscreen)) break; // Quit If Window Was Not Created
 			}
 		}
 	}
@@ -144,10 +152,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		keys[wParam] = true;
 		ywStruct.keys[wParam] = TRUE;
 		ywStruct.flag = 1;
-		MessageBox(hWnd, L"keyDown", L"keyDown", MB_OK);
+		//MessageBox(hWnd, L"keyDown", L"keyDown", MB_OK);
 		return 0;
 	case WM_KEYUP:
-		keys[wParam] = true;
+		keys[wParam] = false;
+		//MessageBox(hWnd, L"keyUp", L"keyUp", MB_OK);
 		ywStruct.keys[wParam] = FALSE;
 		return 0;
 
@@ -536,8 +545,8 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 {
 	//Anchor* anchor_2 = new Anchor(); /*TODO 이거 DrawGLScene()함수가 호출될때마다 계속 객체생성되니간 한번생성해서 쓸쑤있게 수정하자*/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// Clear Screen And Depth Buffer
-	glLoadIdentity();									// Reset The Current Modelview Matrix
 
+	glLoadIdentity(); // Reset The Current Modelview Matrix
 
 	if (keys[VK_UP]){
 		radius += 1.0f;
@@ -551,65 +560,121 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	else if (keys[VK_RIGHT]){
 		yAngle += 0.5f;
 	}
+	if (keys[VK_SPACE]){
+		writeFlag = 1;
+	}
+	char tempStrDrawGLScene[100] = { '\0', };
 
+	
+	if (writeFlag == 1 && writeCount != 3000){
+		if (tempDist1 != ywStruct.distance_1){
+			tempDist1 = ywStruct.distance_1;
+			printf("%f\n", ywStruct.distance_1);
+			writeCount++;
 
+		}		
+	}
+	if (writeCount == 3000){
+		MessageBoxA(hWnd, "기록끝! 다음 거리로!", "기록끝! 다음 거리로!", MB_OK);
+		writeFlag = 0;
+		writeCount = 0;
+		printf("\n\n");
+	}
 
-	glTranslatef(0.0f, 0.0f, zDelta);
+	hDC = GetDC(hWnd);
+	sprintf(tempStrDrawGLScene, "count : %d // data: %f", writeCount, tempDist1);
+	TextOutA(hDC, 10, 100, tempStrDrawGLScene, strlen(tempStrDrawGLScene));
+	float width = 29.0f;
+	float height = 29.0f;
+
+	glTranslatef(-20, 20, zDelta);
 	glColor3f(1.0f, 1.0f, 1.0f);
 
 	glRotatef(xAngle, 10.0f, 0.0f, 0.0f);
-	glRotatef(yAngle, 0.0f, 10.0f, 0.0f);
+	glRotatef(yAngle, 0.0f, 20.0f, 0.0f);
+
 
 
 
 	glBegin(GL_LINE_LOOP);
-	glVertex3f(-20.0f, 20.0f, 20.0f);
-	glVertex3f(20.0f, 20.0f, 20.0f);
-	glVertex3f(20.0f, -20.0f, 20.0f);
-	glVertex3f(-20.0f, -20.0f, 20.0f);
+	glVertex3f(0.0f, 0.0f, height);
+	glVertex3f(width, 0.0f, height);
+	glVertex3f(width, -17.0f, height);
+	glVertex3f(0.0f, -17.0f, height);
 	glEnd();
 
 	glBegin(GL_LINE_LOOP);
-	glVertex3f(-20.0f, 20.0f, -20.0f);
-	glVertex3f(20.0f, 20.0f, -20.0f);
-	glVertex3f(20.0f, -20.0f, -20.0f);
-	glVertex3f(-20.0f, -20.0f, -20.0f);
+	glVertex3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(width, 0.0f, 0.0f);
+	glVertex3f(width, -17.0f, 0.0f);
+	glVertex3f(0.0f, -17.0f, 0.0f);
 	glEnd();
 
 	glBegin(GL_LINES);
-	glVertex3f(-20.0f, 20.0f, 20.0f);
-	glVertex3f(-20.0f, 20.0f, -20.0f);
-	glVertex3f(20.0f, 20.0f, 20.0f);
-	glVertex3f(20.0f, 20.0f, -20.0f);
-	glVertex3f(20.0f, -20.0f, 20.0f);
-	glVertex3f(20.0f, -20.0f, -20.0f);
-	glVertex3f(-20.0f, -20.0f, 20.0f);
-	glVertex3f(-20.0f, -20.0f, -20.0f);
+	glVertex3f(0.0f, 00.0f, height);
+	glVertex3f(0.0f, 00.0f, 0.0f);
+
+	glVertex3f(width, 0.0f, height);
+	glVertex3f(width, 0.0f, 0.0f);
+
+	glVertex3f(width, -17.0f, height);
+	glVertex3f(width, -17.0f, 0.0f);
+
+	glVertex3f(0.0f, -17.0f, height);
+	glVertex3f(0.0f, -17.0f, 0.0f);
 	glEnd();
 
-	glPushMatrix();
-	glTranslatef(20.0f, 20.0f, 20.0f);
-	glColor3f(1.0f, 0.0f, 0.0f);
-	gluSphere(anchor_1, radius_1, 24, 24);
-	glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(-20.0f, 20.0f, -20.0f);
-	glColor3f(0.0f, 1.0f, 0.0f);
-	gluSphere(anchor_2, radius_2, 24, 24);
-	glPopMatrix();
+	//Trilateration_3D
+	ywPos Anchor1 = { 0, }, Anchor2 = { 0, }, Anchor3 = { 0, };
+	ywPos Tag = { 0, };
+	
+	
+	//HWND debugButton;
+	//debugButton = CreateWindow(L"BUTTON", L"OK",
+	//	WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
+	//	0, 0, 10, 10,
+	//	hWnd, (HMENU)100, g_hInstance, NULL);
 
+	char tagInfo[500] = { '\0', };
+
+	Tag = calcTagPosition(Anchor1, Anchor2, Anchor3, ywStruct.distance_1, ywStruct.distance_2, ywStruct.distance_3,tagInfo);
+
+	hDC = GetDC(hWnd);
+	TextOutA(hDC, 100, 30, tagInfo, strlen(tagInfo));
+	
+	ReleaseDC(hWnd, hDC);
+
+	//tag
 	glPushMatrix();
-	glTranslatef(20.0f, 20.0f, -20.0f);
+	//glTranslatef(Tag.x, Tag.y, Tag.z);
+	glTranslatef(Tag.x, -Tag.z, Tag.y);
 	glColor3f(0.0f, 0.0f, 1.0f);
-	gluSphere(anchor_3, radius_3, 24, 24);
+	gluSphere(tag, 1.0, 24, 24);
 	glPopMatrix();
 
-	glPushMatrix();
-	glTranslatef(10.0f, 10.0f, -10.0f);
-	glColor3f(0.0f, 0.0f, 1.0f);
-	gluSphere(tag, 2, 24, 24);
-	glPopMatrix();
+	////anchor1 - 빨간구
+	//glPushMatrix();
+	//glTranslatef(0.0f, 0.0f, 0.0f);
+	//glColor3f(1.0f, 0.0f, 0.0f);
+	//gluSphere(anchor_1, ywStruct.distance_1 / 10.0f, 24, 24);
+	//glPopMatrix();
+
+	//// anchor2 - 초록구
+	//glPushMatrix();
+	//glTranslatef(width, 0.0f, 0.0f);
+	//glColor3f(0.0f, 1.0f, 0.0f);
+	//gluSphere(anchor_2, ywStruct.distance_2 / 10.0f, 24, 24);
+	//glPopMatrix();
+
+	//// anchor2 - 파란구
+	//glPushMatrix();
+	//glTranslatef(0.0f, 0.0f, height);
+	//glColor3f(0.0f, 0.0f, 1.0f);
+	//gluSphere(anchor_3, ywStruct.distance_3 / 10.0f, 24, 24);
+	//glPopMatrix();
+
+
 
 	return TRUE;										// Everything Went OK
 }

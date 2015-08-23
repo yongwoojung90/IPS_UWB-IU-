@@ -1,4 +1,5 @@
 #include "IU_BTComm.h"
+#include "IU_KalmanFilter.h"
 
 float buffer[3][BUFFER_LENGTH] = { 0, };
 
@@ -403,7 +404,8 @@ void parsing(char* midData, YWstruct* ywStruct){
 	int anchorID = 0;
 	char* pMidData = midData;
 	int flag = 0;
-	char distFromAnchor[4][10];
+	char distFromAnchor[4][10] = { '\0', };
+	
 	int index = 0;
 	int len = 0;
 
@@ -437,7 +439,7 @@ void parsing(char* midData, YWstruct* ywStruct){
 			break;
 		}
 		else if (*pMidData == '#'){
-			flag = 4;
+			flag = 2;
 			anchorID = 1;
 			index = 0;
 			len = strlen(midData) - i;
@@ -461,22 +463,30 @@ void parsing(char* midData, YWstruct* ywStruct){
 			break;
 		case '=': //end
 			//Transform ToF into real distance(cm)
+			anchorID = 1;
+			index = 0;
 			if (flag == 1){
+				
 				temp = atof(distFromAnchor[1]);
-				filtered = filtering(temp, buffer[0], weightArr);
+				filtered = MA_filtering(temp, buffer[0], weightArr);
+				filtered = KalmanFilter(0, filtered);				
 				if (filtered != 0)
-					ywStruct->distance_1 = filtered*84.896 - 35.1868;
+					ywStruct->distance_1 = filtered*84.896 - 35.1868;  //Tof to Real Distance (cm)
+					//ywStruct->distance_1 = filtered;
 
 				temp = atof(distFromAnchor[2]);
-				filtered = filtering(temp, buffer[1], weightArr);
+				filtered = MA_filtering(temp, buffer[1], weightArr);
+				filtered = KalmanFilter(1, filtered);
 				if (filtered != 0)
 					ywStruct->distance_2 = filtered*84.896 - 35.1868;
 
 				temp = atof(distFromAnchor[3]);
-				filtered = filtering(temp, buffer[2], weightArr);
+				filtered = MA_filtering(temp, buffer[2], weightArr);
+				filtered = KalmanFilter(2, filtered);
 				if (filtered != 0)
 					ywStruct->distance_3 = filtered*84.896 - 35.1868;
-				ywStruct->draw_flag = 1;
+				
+				//ywStruct->draw_flag = 1;
 				sprintf(realDistStr, "%f, %f, %f", ywStruct->distance_1, ywStruct->distance_2, ywStruct->distance_3);
 				SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(realDistStr), NULL);
 				flag = 0;
@@ -485,13 +495,13 @@ void parsing(char* midData, YWstruct* ywStruct){
 			}
 			else if (flag == 2){
 				temp = atof(distFromAnchor[2]);
-				filtered = filtering(temp, buffer[1], weightArr);
+				filtered = MA_filtering(temp, buffer[1], weightArr);
 				if (filtered != 0){
 					ywStruct->width += filtered*84.896 - 35.1868; //width (anchor1 <-> anchor2)
 					ywStruct->cnt_width++;
 				}
 				temp = atof(distFromAnchor[3]);
-				filtered = filtering(temp, buffer[2], weightArr);
+				filtered = MA_filtering(temp, buffer[2], weightArr);
 				if (filtered != 0){
 					ywStruct->height += filtered*84.896 - 35.1868; //height (anchor1 <-> anchor3)
 					ywStruct->cnt_height++;
@@ -499,13 +509,13 @@ void parsing(char* midData, YWstruct* ywStruct){
 			}
 			else if (flag == 3){
 				temp = atof(distFromAnchor[1]);
-				filtered = filtering(temp, buffer[0], weightArr);
+				filtered = MA_filtering(temp, buffer[0], weightArr);
 				if (filtered != 0){
 					ywStruct->width += filtered*84.896 - 35.1868; // width (anchor2 <-> anchor1)
 					ywStruct->cnt_width++;
 				}
 				temp = atof(distFromAnchor[3]);
-				filtered = filtering(temp, buffer[2], weightArr);
+				filtered = MA_filtering(temp, buffer[2], weightArr);
 				if (filtered != 0){
 					ywStruct->diagonal += filtered*84.896 - 35.1868; // diagonal length (anchor2 <->anchor3)
 					ywStruct->cnt_diagonal++;
@@ -513,13 +523,13 @@ void parsing(char* midData, YWstruct* ywStruct){
 			}
 			else if (flag == 4){
 				temp = atof(distFromAnchor[1]);
-				filtered = filtering(temp, buffer[0], weightArr);
+				filtered = MA_filtering(temp, buffer[0], weightArr);
 				if (filtered != 0){
 					ywStruct->height += filtered*84.896 - 35.1868; // height (anchor3 <-> anchor1)
 					ywStruct->cnt_height++;
 				}
 				temp = atof(distFromAnchor[2]);
-				filtered = filtering(temp, buffer[1], weightArr); 
+				filtered = MA_filtering(temp, buffer[1], weightArr); 
 				if (filtered != 0){
 					ywStruct->diagonal += filtered*84.896 - 35.1868; //diagonal length (anchor3 <-> anchor2)
 					ywStruct->cnt_diagonal++;
@@ -565,11 +575,11 @@ void shift_buf(float newData, float* dataBuf)
 	}
 	dataBuf[i - 1] = newData;
 }
-float filtering(float newData, float* dataBuf, float* weightArr)
+float MA_filtering(float newData, float* dataBuf, float* weightArr)
 {
 	float retVal = 0.0;
 	int i = 0;
-	/*filtering*/
+	/*MA_filtering*/
 	if (dataBuf[0] != 0.0){
 		for (i = 0; i < BUFFER_LENGTH; i++){
 			retVal += (weightArr[i] * dataBuf[i]);

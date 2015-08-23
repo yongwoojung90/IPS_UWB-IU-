@@ -69,7 +69,7 @@ typedef struct __distance{
 /////////////////////////////////////
 #define BUFFER_LENGTH 9
 void shift_buf(float newData, float* buf);
-float filtering(float newData, float* dataBuf, float* weightArr);
+float MA_filtering(float newData, float* dataBuf, float* weightArr);
 /////////////////////////////////////
 
 

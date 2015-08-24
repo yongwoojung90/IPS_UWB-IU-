@@ -10,11 +10,15 @@
 #define CP_ANCHOR_3 3
 
 
-float cpKalmanFilter(int AnchorNumber, float distance, float Q = 0.0071f, float R = 0.608f);
+float cpKalmanFilter(float inputData, int AnchorNumber, float Q = 0.0071f, float R = 0.608f);
 
 ////////////////Moving Average Filter Function////////////////////////
 #define BUFFER_LENGTH 9
-void shift_buf(float newData, float* buf);
+
+//
+void cpShiftBuf(float newData, float* buf);
+
+//
 float cpMovingAverageFilter(float inputData, int anchorNo, float* weightArr = NULL);
 //////////////////////////////////////////////////////////////////////
 

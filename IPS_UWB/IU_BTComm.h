@@ -15,13 +15,21 @@
 //하.. 요 밑에꺼 좀 이쁘게 할수있는 방법 찾자
 /////////////////////////////////////////////////////
 DEFINE_GUID(g_guidServiceClass, 0xb62c4e8d, 0x62cc, 0x404b, 0xbb, 0xbf, 0xbf, 0x3e, 0x3b, 0xbb, 0x13, 0x74);
-
-
 #define CXN_MAX_INQUIRY_RETRY             3
 #define CXN_DELAY_NEXT_INQUIRY            15
-
-
 /////////////////////////////////////////////////////
+
+
+typedef struct _CpToF{
+	float Anchor[4];
+}CpToF;
+typedef struct _CpRealDistance{
+	float Anchor[4];
+}CpRealDistance;
+
+
+
+
 
 typedef struct _YWstruct{
 
@@ -50,14 +58,14 @@ DWORD WINAPI GetToF(LPVOID ywStruct);
 //DWORD WINAPI DrawTrilateration(LPVOID lpParam);
 
 //Functions for BlueTooth Communication and Get ToF data
-int SetBluetooth(int ConnectionhMode, char* nameOrAddr);
+int cpSetBluetooth(int ConnectionhMode, char* nameOrAddr);
 ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBthAddr);
 ULONG AddrStringToBtAddr(IN const char * pszRemoteAddr, OUT BTH_ADDR * pRemoteBtAddr);
-int StartBluetooth(ULONGLONG ululRemoteBthAddr, YWstruct* ywStruct);
+int cpStartBluetooth(ULONGLONG ululRemoteBthAddr, YWstruct* ywStruct);
 
 
 //////////////////////////////////////
-void parsing(char* string, YWstruct* ywStruct);
+CpToF cpParsing(char* strSrcData, YWstruct* ywStruct);
 //////////////////////////////////////
 
 

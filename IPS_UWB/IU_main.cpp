@@ -254,7 +254,7 @@ DWORD WINAPI GetToF(LPVOID ywStruct)
 	//ready to bluetooth connection
 	if ((retVal = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0) //if success to initial, WSAStartup() return 0
 	{
-		goto CleanUpAndExit;
+		goto WinsockCleanupAndExit;
 	}
 	if (BToothConnMode == 1)
 	{
@@ -264,7 +264,7 @@ DWORD WINAPI GetToF(LPVOID ywStruct)
 		// Get address from name of the remote device and run the application in client mode
 		if ((retVal = NameToBthAddr(tagBlueToothName, (BTH_ADDR *)&ululTagBlueToothAddr)) != 0)
 		{
-			goto CleanUpAndExit;
+			goto WinsockCleanupAndExit;
 		}
 	}
 	else if (BToothConnMode == 2)
@@ -275,18 +275,18 @@ DWORD WINAPI GetToF(LPVOID ywStruct)
 		//  should be calling the WSAStringToAddress()
 		if (0 != (retVal = AddrStringToBtAddr(tagBlueToothAddr, (BTH_ADDR *)&ululTagBlueToothAddr)))
 		{
-			goto CleanUpAndExit;
+			goto WinsockCleanupAndExit;
 		}
 	}
 
 	//start bluetooth comm and recveive ToF data from Tag(UWB trx device)
-	retVal = StartBluetooth(ululTagBlueToothAddr, pYWstruct);
+	retVal = cpStartBluetooth(ululTagBlueToothAddr, pYWstruct);
 
 
 
 	return 0; //error free terminate thread
 
-CleanUpAndExit:			
+WinsockCleanupAndExit:
 	WSACleanup();
 	/* retVal has winsock error code */
 	/* https://msdn.microsoft.com/en-us/library/windows/desktop/ms740668(v=vs.85).aspx */

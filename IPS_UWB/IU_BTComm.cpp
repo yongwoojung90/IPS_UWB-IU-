@@ -206,7 +206,7 @@ CleanupAndExit:
 
 
 // It opens a socket, connects it to a remote socket, recveive some data and closes the connection.
-int StartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
+int cpStartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 {
 	SOCKET             BT_Socket = INVALID_SOCKET;
 	SOCKADDR_BTH       BT_SockAddr = { 0 };
@@ -217,13 +217,17 @@ int StartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 	BT_SockAddr.port = 1;								// Valid ports are 1 - 31. if ServiceClassId is spesified, Port should be set to 0
 	BT_Socket = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
 
+	int recvLen = 0;
 
-	if (BT_Socket == INVALID_SOCKET){ goto CleanupAndExit; }
-	if (connect(BT_Socket, (struct sockaddr *) &BT_SockAddr, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR){ goto CleanupAndExit; }
+	if (BT_Socket == INVALID_SOCKET){
+		goto CleanupAndExit;
+	}
+	if (connect(BT_Socket, (struct sockaddr *) &BT_SockAddr, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR){
+		goto CleanupAndExit;
+	}
 
 	//ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
 
-	int recvLen = 0;
 
 
 	//싱크 맞추는 첫번째 방법 
@@ -284,6 +288,8 @@ int StartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 				totalRecvLen += recvLen;
 				if (totalRecvLen >= CP_RECV_BUF_LENGTH){
 					parsing(recvBuffer, ywStruct);
+					/*filtering*/
+
 					//SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(recvBuffer));
 					if (ywStruct->draw_flag == 1) SendMessage(ywStruct->hWndMain, WM_USER + 1, (WPARAM)ywStruct->width, (LPARAM)ywStruct->height);
 					SendMessage(ywStruct->hWndMain, WM_USER + 3, (WPARAM)(totalRecvLen), (LPARAM)(recvBuffer));
@@ -295,6 +301,7 @@ int StartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 			else if (recvLen == 0){
 				// socket connection has been closed gracefully
 				/*TO DO : 연결종료됬을 때 이후의 프로세스 위한 부분 구현*/
+				return 0;
 				goto CleanupAndExit;
 			}
 			else{
@@ -376,92 +383,92 @@ CleanupAndExit:
 }
 
 //파싱 어디론가 떼어내서 모듈화해야된다.
-void parsing(char* midData, YWstruct* ywStruct){
+CpToF cpParsing(char* strSrcData, YWstruct* ywStruct){
 
 	int i = 0;
 	int anchorID = 0;
-	char* pMidData = midData;
+	char* pStrSrcData = strSrcData;
 	int flag = 0;
 	char distFromAnchor[4][10] = { '\0', };
 	static int cntDumpData = 0;
 	int index = 0;
 	int len = 0;
 
+	CpToF ToF; // 파싱된 ToF값들이 저장되고, 리턴되어진다.
 	////////////////////////////////////////
 
 	float newData = 0.0;
 	float resData = 0.0;
 	////////////////////////////////////////
 
-	for (i = 0; i < strlen(midData); i++){
-		if (*pMidData == '*'){
+	for (i = 0; i < strlen(strSrcData); i++){
+		if (*pStrSrcData == '*'){
 			flag = 1;
 			anchorID = 1;
 			index = 0;
-			len = strlen(midData) - i;
+			len = strlen(strSrcData) - i;
 			break;
 		}
-		else if (*pMidData == '!'){
+		//else if (*pStrSrcData == '!'){
+		//	flag = 2;
+		//	anchorID = 1;
+		//	index = 0;
+		//	len = strlen(midData) - i;
+		//	break;
+		//}
+		//else if (*pStrSrcData == '@'){
+		//	flag = 3;
+		//	anchorID = 1;
+		//	index = 0;
+		//	len = strlen(midData) - i;
+		//	break;
+		//}
+		else if (*pStrSrcData == '#'){
 			flag = 2;
 			anchorID = 1;
 			index = 0;
-			len = strlen(midData) - i;
+			len = strlen(strSrcData) - i;
 			break;
 		}
-		else if (*pMidData == '@'){
-			flag = 3;
-			anchorID = 1;
-			index = 0;
-			len = strlen(midData) - i;
-			break;
-		}
-		else if (*pMidData == '#'){
-			flag = 2;
-			anchorID = 1;
-			index = 0;
-			len = strlen(midData) - i;
-			break;
-		}
-		pMidData++;
+		pStrSrcData++;
 	}
 
 
 	if (flag == 0) return; //받은 데이터에 '*'또는 '!' , '@', '#'가 없으므로 parsing하지 않고 나간다.
 
 
-	float temp = 0.0;
 	float filtered = 0.0;
 	char realDistStr[50] = { '\0', };
 
 	for (i = 0; i < len && flag != 0; i++){
-		switch (*pMidData)
+		switch (*pStrSrcData)
 		{
 		case ',': //tokenizer
 			anchorID += 1;
 			index = 0;
 			break;
-		case '=': //end
+		case '=': // '=' means end of data
 			//Transform ToF into real distance(cm)
 			anchorID = 1;
 			index = 0;
 			if (flag == 1){
 
-				temp = atof(distFromAnchor[1]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
-				filtered = cpKalmanFilter(0, filtered);
+				ToF.Anchor[1] = atof(distFromAnchor[1]);
+				filtered = cpMovingAverageFilter(ToF.Anchor[1], CP_ANCHOR_1);
+				filtered = cpKalmanFilter(filtered, 1);
 				if (filtered != 0)
 					ywStruct->distance_1 = filtered*84.896 - 35.1868;  //Tof to Real Distance (cm)
 				//ywStruct->distance_1 = filtered;
 
-				temp = atof(distFromAnchor[2]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
-				filtered = cpKalmanFilter(1, filtered);
+				ToF.Anchor[2] = atof(distFromAnchor[2]);
+				filtered = cpMovingAverageFilter(ToF.Anchor[2], CP_ANCHOR_2);
+				filtered = cpKalmanFilter(filtered, 2);
 				if (filtered != 0)
 					ywStruct->distance_2 = filtered*84.896 - 35.1868;
 
-				temp = atof(distFromAnchor[3]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
-				filtered = cpKalmanFilter(2, filtered);
+				ToF.Anchor[3] = atof(distFromAnchor[3]);
+				filtered = cpMovingAverageFilter(ToF.Anchor[3], CP_ANCHOR_3);
+				filtered = cpKalmanFilter(filtered, 3);
 				if (filtered != 0)
 					ywStruct->distance_3 = filtered*84.896 - 35.1868;
 
@@ -469,19 +476,19 @@ void parsing(char* midData, YWstruct* ywStruct){
 				sprintf(realDistStr, "%f, %f, %f", ywStruct->distance_1, ywStruct->distance_2, ywStruct->distance_3);
 				SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(realDistStr), NULL);
 				flag = 0;
-				return; //사실 for문 조건에 flag == 1 도 없에고 이 바로윗줄에서 flag = 0;도 없에도 return; 때문에 나가진다.
+				return ToF; //사실 for문 조건에 flag == 1 도 없에고 이 바로윗줄에서 flag = 0;도 없에도 return; 때문에 나가진다.
 				break;
 			}
 			else if (flag == 2){
 				if (cntDumpData > 100 && cntDumpData < 150){
-					temp = atof(distFromAnchor[2]);
-					filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
+					ToF.Anchor[2] = atof(distFromAnchor[2]);
+					filtered = cpMovingAverageFilter(ToF.Anchor[2], CP_ANCHOR_2);
 					if (filtered != 0){
 						ywStruct->width += filtered*84.896 - 35.1868; //width (anchor1 <-> anchor2)
 						ywStruct->cnt_width++;
 					}
-					temp = atof(distFromAnchor[3]);
-					filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
+					ToF.Anchor[3] = atof(distFromAnchor[3]);
+					filtered = cpMovingAverageFilter(ToF.Anchor[3], CP_ANCHOR_3);
 					if (filtered != 0){
 						ywStruct->height += filtered*84.896 - 35.1868; //height (anchor1 <-> anchor3)
 						ywStruct->cnt_height++;
@@ -501,41 +508,40 @@ void parsing(char* midData, YWstruct* ywStruct){
 					cntDumpData = 0;
 				}
 			}
-			else if (flag == 3){
-				temp = atof(distFromAnchor[1]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
-				if (filtered != 0){
-					ywStruct->width += filtered*84.896 - 35.1868; // width (anchor2 <-> anchor1)
-					ywStruct->cnt_width++;
-				}
-				temp = atof(distFromAnchor[3]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
-				if (filtered != 0){
-					ywStruct->diagonal += filtered*84.896 - 35.1868; // diagonal length (anchor2 <->anchor3)
-					ywStruct->cnt_diagonal++;
-				}
-			}
-			else if (flag == 4){
-				temp = atof(distFromAnchor[1]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
-				if (filtered != 0){
-					ywStruct->height += filtered*84.896 - 35.1868; // height (anchor3 <-> anchor1)
-					ywStruct->cnt_height++;
-				}
-				temp = atof(distFromAnchor[2]);
-				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
-				if (filtered != 0){
-					ywStruct->diagonal += filtered*84.896 - 35.1868; //diagonal length (anchor3 <-> anchor2)
-					ywStruct->cnt_diagonal++;
-				}
-
-				ywStruct->width = ywStruct->width / (float)ywStruct->cnt_width;
-				ywStruct->width = ywStruct->height / (float)ywStruct->cnt_height;
-				ywStruct->draw_flag = 1;
-			}
+			//else if (flag == 3){
+			//	temp = atof(distFromAnchor[1]);
+			//	filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
+			//	if (filtered != 0){
+			//		ywStruct->width += filtered*84.896 - 35.1868; // width (anchor2 <-> anchor1)
+			//		ywStruct->cnt_width++;
+			//	}
+			//	temp = atof(distFromAnchor[3]);
+			//	filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
+			//	if (filtered != 0){
+			//		ywStruct->diagonal += filtered*84.896 - 35.1868; // diagonal length (anchor2 <->anchor3)
+			//		ywStruct->cnt_diagonal++;
+			//	}
+			//}
+			//else if (flag == 4){
+			//	temp = atof(distFromAnchor[1]);
+			//	filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
+			//	if (filtered != 0){
+			//		ywStruct->height += filtered*84.896 - 35.1868; // height (anchor3 <-> anchor1)
+			//		ywStruct->cnt_height++;
+			//	}
+			//	temp = atof(distFromAnchor[2]);
+			//	filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
+			//	if (filtered != 0){
+			//		ywStruct->diagonal += filtered*84.896 - 35.1868; //diagonal length (anchor3 <-> anchor2)
+			//		ywStruct->cnt_diagonal++;
+			//	}
+			//	ywStruct->width = ywStruct->width / (float)ywStruct->cnt_width;
+			//	ywStruct->width = ywStruct->height / (float)ywStruct->cnt_height;
+			//	ywStruct->draw_flag = 1;
+			//}
 		default:
-			if (('0' <= *pMidData && *pMidData <= '9') || *pMidData == '.'){ //when receive error free data
-				distFromAnchor[anchorID][index] = *pMidData;
+			if (('0' <= *pStrSrcData && *pStrSrcData <= '9') || *pStrSrcData == '.'){ //when receive error free data
+				distFromAnchor[anchorID][index] = *pStrSrcData;
 				index += 1;
 			}
 			else{
@@ -546,7 +552,7 @@ void parsing(char* midData, YWstruct* ywStruct){
 				break;
 			}
 		}
-		pMidData++;
+		pStrSrcData++;
 	}
 }
 

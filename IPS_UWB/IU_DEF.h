@@ -6,8 +6,8 @@
 #define IU_ERROR_CONNECTION 3
 
 
-#define IU_READ_DATA_LENGTH			25		// length of the received data
-#define IU_MIDDLE_BUFFER_LENGTH		IU_READ_DATA_LENGTH*2
-#define IU_BT_ADDR_LEN				17+1	// 6 two-digit hex values plus 5 colons and null charactor '\0'
+#define CP_PACKET_LENGTH			25		// length of the Cicada Project Protocol's packet :  *00.0000,00.0000,00.0000=
+#define CP_RECV_BUF_LENGTH			CP_PACKET_LENGTH*2 // 50bytes-bluetooth receive buffer length
+#define CP_BT_ADDR_LEN				17+1	//Cicada Project Bluetooth Address Length, 6 two-digit hex values plus 5 colons and null charactor '\0'
 
 

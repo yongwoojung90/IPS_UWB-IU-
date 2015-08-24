@@ -241,55 +241,56 @@ DWORD WINAPI DrawTrilateration(LPVOID lpParam)
 
 DWORD WINAPI GetToF(LPVOID ywStruct)
 {
-	ULONG      ulRetCode = 0;
-
-	ULONGLONG  ululRemoteBthAddr = 0;
-	int mode = 2;
+	int			retVal = 0;
+	ULONGLONG  ululTagBlueToothAddr = 0;
+	int BToothConnMode = 2; //BlueToothConnectionMode : 1 - connection using tag's bluetooth name, 2 - using tag's bluetooth address
 	YWstruct* pYWstruct;
-	char g_szRemoteName[BTH_MAX_NAME_SIZE + 1] = { 0 };  // 1 extra for trailing NULL character
-	char g_szRemoteAddr[IU_BT_ADDR_LEN + 1] = { 0 }; // 1 extra for trailing NULL character
+	char tagBlueToothName[BTH_MAX_NAME_SIZE + 1] = { '\0', };  // 1 extra for trailing NULL character
+	char tagBlueToothAddr[CP_BT_ADDR_LEN] = { '\0', };
+	WSADATA    WSAData = { 0 };
 
 	pYWstruct = (YWstruct*)ywStruct;
 
-	// Ask for Winsock version 2.2.
-	WSADATA    WSAData = { 0 };
-	if ((ulRetCode = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0)
+	//ready to bluetooth connection
+	if ((retVal = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0) //if success to initial, WSAStartup() return 0
 	{
-		goto CleanupAndExit;
+		goto CleanUpAndExit;
 	}
-	else
-		scanf("%d\n", &mode);
-
-
-	if (mode == 1)
+	if (BToothConnMode == 1)
 	{
 		char* BTD_Name = "UWB";
-		strcpy(g_szRemoteName, BTD_Name);
+		strcpy(tagBlueToothName, BTD_Name);
 
 		// Get address from name of the remote device and run the application in client mode
-		if ((ulRetCode = NameToBthAddr(g_szRemoteName, (BTH_ADDR *)&ululRemoteBthAddr)) != 0)
+		if ((retVal = NameToBthAddr(tagBlueToothName, (BTH_ADDR *)&ululTagBlueToothAddr)) != 0)
 		{
-			goto CleanupAndExit;
+			goto CleanUpAndExit;
 		}
-		ulRetCode = RunClientMode(ululRemoteBthAddr, pYWstruct);
 	}
-	else if (mode == 2)
+	else if (BToothConnMode == 2)
 	{
 		char* BTD_Addr = "00:19:01:37:BF:2E";
-		strcpy(g_szRemoteAddr, BTD_Addr);
+		strcpy(tagBlueToothAddr, BTD_Addr);
 		// Get address from formatted address-string of the remote device and run the application in client mode
 		//  should be calling the WSAStringToAddress()
-		if (0 != (ulRetCode = AddrStringToBtAddr(g_szRemoteAddr, (BTH_ADDR *)&ululRemoteBthAddr)))
+		if (0 != (retVal = AddrStringToBtAddr(tagBlueToothAddr, (BTH_ADDR *)&ululTagBlueToothAddr)))
 		{
-			goto CleanupAndExit;
+			goto CleanUpAndExit;
 		}
-
-		ulRetCode = RunClientMode(ululRemoteBthAddr, pYWstruct);
 	}
 
+	//start bluetooth comm and recveive ToF data from Tag(UWB trx device)
+	retVal = StartBluetooth(ululTagBlueToothAddr, pYWstruct);
 
-CleanupAndExit:
-	return (int)(ulRetCode);
+
+
+	return 0; //error free terminate thread
+
+CleanUpAndExit:			
+	WSACleanup();
+	/* retVal has winsock error code */
+	/* https://msdn.microsoft.com/en-us/library/windows/desktop/ms740668(v=vs.85).aspx */
+	return retVal;
 }
 
 BOOL CreateGLWindow(wchar_t* title, int width, int height, int bits, bool fullscreenflag)
@@ -565,14 +566,14 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	}
 	char tempStrDrawGLScene[100] = { '\0', };
 
-	
+
 	if (writeFlag == 1 && writeCount != 3000){
 		if (tempDist1 != ywStruct.distance_1){
 			tempDist1 = ywStruct.distance_1;
 			printf("%f\n", ywStruct.distance_1);
 			writeCount++;
 
-		}		
+		}
 	}
 	if (writeCount == 3000){
 		MessageBoxA(hWnd, "기록끝! 다음 거리로!", "기록끝! 다음 거리로!", MB_OK);
@@ -628,8 +629,8 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	//Trilateration_3D
 	ywPos Anchor1 = { 0, }, Anchor2 = { 0, }, Anchor3 = { 0, };
 	ywPos Tag = { 0, };
-	
-	
+
+
 	//HWND debugButton;
 	//debugButton = CreateWindow(L"BUTTON", L"OK",
 	//	WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
@@ -638,11 +639,11 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 
 	char tagInfo[500] = { '\0', };
 
-	Tag = calcTagPosition(Anchor1, Anchor2, Anchor3, ywStruct.distance_1, ywStruct.distance_2, ywStruct.distance_3,tagInfo);
+	Tag = calcTagPosition(Anchor1, Anchor2, Anchor3, ywStruct.distance_1, ywStruct.distance_2, ywStruct.distance_3, tagInfo);
 
 	hDC = GetDC(hWnd);
 	TextOutA(hDC, 100, 30, tagInfo, strlen(tagInfo));
-	
+
 	ReleaseDC(hWnd, hDC);
 
 	//tag

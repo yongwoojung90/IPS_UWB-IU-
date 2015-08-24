@@ -1,7 +1,7 @@
 #include "IU_BTComm.h"
-#include "IU_KalmanFilter.h"
+#include "CP_Filter.h"
 
-float buffer[3][BUFFER_LENGTH] = { 0, };
+
 
 // This(NameToBtgAddr()) just redundant!!!!
 // TODO: use inquiry timeout SDP_DEFAULT_INQUIRY_SECONDS
@@ -204,43 +204,24 @@ CleanupAndExit:
 	return ulRetCode;
 }
 
-// It opens a socket, connects it to a remote socket, transfer some data over the connection and closes the connection.
-ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
+
+// It opens a socket, connects it to a remote socket, recveive some data and closes the connection.
+int StartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 {
-	//ULONG              ulRetCode = 0;
-	SOCKET             BT_Socket = INVALID_SOCKET; //Socket도 핸들 처럼 음..ID 라고 생각하면된다? 값도 실제로 정수값을 가진다.
+	SOCKET             BT_Socket = INVALID_SOCKET;
 	SOCKADDR_BTH       BT_SockAddr = { 0 };
 
-	BT_SockAddr.addressFamily = AF_BTH; // Setting address family to AF_BTH indicates winsock2 to use Bluetooth sockets
-	BT_SockAddr.btAddr = (BTH_ADDR)ululRemoteAddr;
+	BT_SockAddr.addressFamily = AF_BTH;							// Setting address family to AF_BTH indicates winsock2 to use Bluetooth sockets
+	BT_SockAddr.btAddr = (BTH_ADDR)ululTagBlueToothAddr;
 	BT_SockAddr.serviceClassId = g_guidServiceClass;
-	BT_SockAddr.port = 1;	// Valid ports are 1 - 31. if ServiceClassId is spesified, Port should be set to 0
-
-	//// Create a static data-string, which will be transferred to the remote Bluetooth device
-	////  may make this #define and do strlen() of the string
-	//strncpy_s(szData, sizeof(szData), "~!@#$%^&*()-_=+?<>1234567890abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ",
-	//	CXN_TRANSFER_DATA_LENGTH - 1);
-
-	//소켓 생성
+	BT_SockAddr.port = 1;								// Valid ports are 1 - 31. if ServiceClassId is spesified, Port should be set to 0
 	BT_Socket = socket(AF_BTH, SOCK_STREAM, BTHPROTO_RFCOMM);
 
-	//error check
-	if (BT_Socket == INVALID_SOCKET){
-		ywStruct->WSA_ErrorCode = WSAGetLastError();
-		ywStruct->IU_ErrorCode = IU_ERROR_SOCKET;
-		goto CleanupAndExit;
-		/*TO DO : 바로 위에 goto Clean~ 이거 대신 프로세스 멈추고 경고 날리는거 구현*/
-	}
 
-	if (connect(BT_Socket, (struct sockaddr *) &BT_SockAddr, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR)
-	{
-		ywStruct->WSA_ErrorCode = WSAGetLastError();
-		ywStruct->IU_ErrorCode = IU_ERROR_CONNECTION;
-		goto CleanupAndExit;
-	}
+	if (BT_Socket == INVALID_SOCKET){ goto CleanupAndExit; }
+	if (connect(BT_Socket, (struct sockaddr *) &BT_SockAddr, sizeof(SOCKADDR_BTH)) == SOCKET_ERROR){ goto CleanupAndExit; }
 
-	ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
-	wchar_t text[IU_READ_DATA_LENGTH + 2];
+	//ywStruct->hDCMain = GetDC(ywStruct->hWndMain);
 
 	int recvLen = 0;
 
@@ -249,7 +230,7 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//int len = 0;
 	//int bufferLen = IU_READ_DATA_LENGTH;
 	//while (1) {
-	//	recvLen = recv(BT_Socket, midBuffer, bufferLen, 0);
+	//	recvLen = recv(BT_Socket, recvBuffer, bufferLen, 0);
 	//	switch (recvLen)
 	//	{
 	//	case 0:
@@ -259,27 +240,27 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 	//		ywStruct->WSA_ErrorCode = WSAGetLastError();
 	//		break;
 	//	default:
-	//		if (midBuffer[0] == '*' && midBuffer[24] == '=') //싱크도 맞고 보낸 데이터가 정확히 다 온경우
+	//		if (recvBuffer[0] == '*' && recvBuffer[24] == '=') //싱크도 맞고 보낸 데이터가 정확히 다 온경우
 	//		{
 	//			bufferLen = IU_READ_DATA_LENGTH;
-	//			midBuffer[IU_READ_DATA_LENGTH] = '\0';
-	//			len = strlen(midBuffer);
-	//			mbstowcs(text, midBuffer, IU_READ_DATA_LENGTH);
+	//			recvBuffer[IU_READ_DATA_LENGTH] = '\0';
+	//			len = strlen(recvBuffer);
+	//			mbstowcs(text, recvBuffer, IU_READ_DATA_LENGTH);
 	//			TextOut(ywStruct->hDCMain, 100, 100, text, IU_READ_DATA_LENGTH);
-	//			strcpy(ywStruct->str, midBuffer);
-	//			parsing(midBuffer, ywStruct);
-	//			::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(midBuffer), 0);
+	//			strcpy(ywStruct->str, recvBuffer);
+	//			parsing(recvBuffer, ywStruct);
+	//			::SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
 	//		}
 	//		else // 싱크가 안 맞거나 중간에 데이터가 손실된 경우
 	//		{
-	//			if (midBuffer[0] == '=') //만약 지금 읽어들인 Data가 엔드...뭐시기면 다음 수신될 데이터가 '*' 일 것이라고 예상 하기 때문에 버퍼의 크기를 늘려줌
+	//			if (recvBuffer[0] == '=') //만약 지금 읽어들인 Data가 엔드...뭐시기면 다음 수신될 데이터가 '*' 일 것이라고 예상 하기 때문에 버퍼의 크기를 늘려줌
 	//			{
 	//				bufferLen = IU_READ_DATA_LENGTH;
 	//			}
 	//			else 
 	//			{
 	//				bufferLen = 1;
-	//				flushBuffer(midBuffer, recvLen + 1);
+	//				flushBuffer(recvBuffer, recvLen + 1);
 	//			}
 	//		}
 	//		break;
@@ -288,67 +269,59 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 
 
 	//싱크 맞추는 두번째 방법. 첫번째랑 두번째랑 어떤게 더 효율적인지 모르겠다.
-	char midBuffer[IU_MIDDLE_BUFFER_LENGTH];
-	char* pMidBuffIdx = midBuffer; // pointer to Middle Buffer
-	int totalRecvLen = 0;
-	int flag = 1;
-	while (flag) {
+	char  recvBuffer[CP_RECV_BUF_LENGTH] = { '\0' };		//receive data buffer
+	char* pRecvDataBuf = recvBuffer;	//pointer to receive data buffer
+	int   totalRecvLen = 0;
+	int   flag = 1;
 
-		while (totalRecvLen < IU_MIDDLE_BUFFER_LENGTH){
-			recvLen = recv(BT_Socket, (char*)pMidBuffIdx, IU_MIDDLE_BUFFER_LENGTH - totalRecvLen, 0); //pMidBuffIdx 에 형변환 해주는 이유는 현재 행 이후의 연산과정에서 int로 형변환이 되기때문
+	while (flag) {
+		while (totalRecvLen < CP_RECV_BUF_LENGTH){
+			recvLen = recv(BT_Socket, (char*)pRecvDataBuf, CP_RECV_BUF_LENGTH - totalRecvLen, 0); //pRecvDataBuf 에 형변환 해주는 이유는 현재 행 이후의 연산과정에서 int로 형변환이 되기때문
 			if (recvLen > 0){
 				//if (recvLen > IU_MIDDLE_BUFFER_LENGTH - totalRecvLen){
 				//}
-				pMidBuffIdx += recvLen;
+				pRecvDataBuf += recvLen;
 				totalRecvLen += recvLen;
-				if (totalRecvLen >= IU_MIDDLE_BUFFER_LENGTH){
-					parsing(midBuffer, ywStruct);
-					//SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
-					if(ywStruct->draw_flag == 1) SendMessage(ywStruct->hWndMain, WM_USER + 1, (WPARAM)ywStruct->width, (LPARAM)ywStruct->height);
-					SendMessage(ywStruct->hWndMain, WM_USER + 3, (WPARAM)(totalRecvLen), (LPARAM)(midBuffer));
+				if (totalRecvLen >= CP_RECV_BUF_LENGTH){
+					parsing(recvBuffer, ywStruct);
+					//SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(recvBuffer));
+					if (ywStruct->draw_flag == 1) SendMessage(ywStruct->hWndMain, WM_USER + 1, (WPARAM)ywStruct->width, (LPARAM)ywStruct->height);
+					SendMessage(ywStruct->hWndMain, WM_USER + 3, (WPARAM)(totalRecvLen), (LPARAM)(recvBuffer));
 					totalRecvLen = 0;
-					pMidBuffIdx = midBuffer;
+					pRecvDataBuf = recvBuffer;
 					break;
 				}
 			}
 			else if (recvLen == 0){
 				// socket connection has been closed gracefully
 				/*TO DO : 연결종료됬을 때 이후의 프로세스 위한 부분 구현*/
-
-				break;
+				goto CleanupAndExit;
 			}
 			else{
 				//SOCKET_ERROR!
 				//어떠한 이유에서 data를 recv하지 못했기 때문에 recv()함수가 SOCKET_ERROR를 리턴했다.
-				if (recvLen == SOCKET_ERROR){
-					ywStruct->WSA_ErrorCode = WSAGetLastError();
-					MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
-					flag = 0;
-					break;
-				}
+				goto CleanupAndExit;
 			}
 		}
 		totalRecvLen = 0;
-
-
 		//if (recvLen > 0){
 		//	char *temp = new char[50];
-		//	strncpy(temp, midBuffer, recvLen);
+		//	strncpy(temp, recvBuffer, recvLen);
 		//	//for (int i = 0; i < 26; i++){
-		//	//	if (*(pMidBuffIdx + i) == '*' && *(pMidBuffIdx + i + 24) == '='){
-		//	//		//MessageBoxA(NULL, midBuffer, NULL, MB_OK);
+		//	//	if (*(pRecvDataBuf + i) == '*' && *(pRecvDataBuf + i + 24) == '='){
+		//	//		//MessageBoxA(NULL, recvBuffer, NULL, MB_OK);
 		//	//		//MessageBox(ywStruct->hWndMain, L"sync!", L"sync!", MB_OK);
-		//	//		strncpy(ywStruct->str, pMidBuffIdx + i, sizeof(wchar_t) * 25);
-		//	//		//strncpy(tempData, pMidBuffIdx + i, 50
+		//	//		strncpy(ywStruct->str, pRecvDataBuf + i, sizeof(wchar_t) * 25);
+		//	//		//strncpy(tempData, pRecvDataBuf + i, 50
 		//	//		//parsing(ywStruct->str, ywStruct);
-		//	//		//SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(midBuffer), 0);
+		//	//		//SendMessage(ywStruct->hWndMain, WM_USER + 1, WPARAM(recvBuffer), 0);
 		//	//		//if (ywStruct->flag == 1){
 		//	//		//	if (cnt == 10) {
 		//	//		//		ywStruct->flag = 0;
 		//	//		//		cnt = 0;
 		//	//		//		MessageBox(ywStruct->hWndMain, L"Write 1000 data", L"Write 1000 data", MB_OK);
 		//	//		//	}
-		//	//		//	strncpy(ywStruct->str, pMidBuffIdx + i + 1, sizeof(wchar_t) * 7);
+		//	//		//	strncpy(ywStruct->str, pRecvDataBuf + i + 1, sizeof(wchar_t) * 7);
 		//	//		//	mbstowcs(text, ywStruct->str, 7);
 		//	//		//	text[7] = 0x0d;
 		//	//		//	text[8] = 0x0a;
@@ -357,12 +330,12 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		//	//		//	WriteFile(ywStruct->hFile, text, sizeof(wchar_t) * 9, &dwWritten, NULL);//거리데이터 기록으로 남기기 위해 파일출력
 		//	//		//	cnt++;
 		//	//		//}
-		//	//		//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
-		//	//		recvLen = recv(BT_Socket, midBuffer, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
+		//	//		//flushBuffer(recvBuffer, IU_READ_DATA_LENGTH * 2 + 1);
+		//	//		recvLen = recv(BT_Socket, recvBuffer, i, 0); //싱크 맞추기 위해서 뒤에 남은 i만큼만 버퍼에서 읽어들인다. 그럼 다음부턴 딱 *부분부터 버퍼에서 읽어올 수 있다.
 		//	//		break;
 		//	//	}
 		//	//}
-		//	//flushBuffer(midBuffer, IU_READ_DATA_LENGTH * 2 + 1);
+		//	//flushBuffer(recvBuffer, IU_READ_DATA_LENGTH * 2 + 1);
 		//}
 		//else if (recvLen == 0){
 		//	//to make 'Socket connection' closed gracefully!
@@ -382,9 +355,13 @@ ULONG RunClientMode(ULONGLONG ululRemoteAddr, YWstruct* ywStruct)
 		//}
 	}
 
-	ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
+	//ReleaseDC(ywStruct->hWndMain, ywStruct->hDCMain);
 
 CleanupAndExit:
+	if (recvLen == SOCKET_ERROR){
+		ywStruct->WSA_ErrorCode = WSAGetLastError();
+		MessageBox(ywStruct->hWndMain, L"Error", ywStruct->error_msg, MB_OK);
+	}
 	if (closesocket(BT_Socket) == SOCKET_ERROR) {
 		ywStruct->WSA_ErrorCode = WSAGetLastError();
 		wsprintf(ywStruct->error_msg, L"WSA Error (%d)", ywStruct->WSA_ErrorCode);
@@ -398,6 +375,7 @@ CleanupAndExit:
 	return 0;
 }
 
+//파싱 어디론가 떼어내서 모듈화해야된다.
 void parsing(char* midData, YWstruct* ywStruct){
 
 	int i = 0;
@@ -405,12 +383,11 @@ void parsing(char* midData, YWstruct* ywStruct){
 	char* pMidData = midData;
 	int flag = 0;
 	char distFromAnchor[4][10] = { '\0', };
-	
+	static int cntDumpData = 0;
 	int index = 0;
 	int len = 0;
 
 	////////////////////////////////////////
-	float weightArr[BUFFER_LENGTH + 1] = { 0.06, 0.06, 0.06, 0.06, 0.06, 0.07, 0.08, 0.13, 0.18, 0.24 };
 
 	float newData = 0.0;
 	float resData = 0.0;
@@ -447,6 +424,8 @@ void parsing(char* midData, YWstruct* ywStruct){
 		}
 		pMidData++;
 	}
+
+
 	if (flag == 0) return; //받은 데이터에 '*'또는 '!' , '@', '#'가 없으므로 parsing하지 않고 나간다.
 
 
@@ -466,26 +445,26 @@ void parsing(char* midData, YWstruct* ywStruct){
 			anchorID = 1;
 			index = 0;
 			if (flag == 1){
-				
+
 				temp = atof(distFromAnchor[1]);
-				filtered = MA_filtering(temp, buffer[0], weightArr);
-				filtered = KalmanFilter(0, filtered);				
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
+				filtered = cpKalmanFilter(0, filtered);
 				if (filtered != 0)
 					ywStruct->distance_1 = filtered*84.896 - 35.1868;  //Tof to Real Distance (cm)
-					//ywStruct->distance_1 = filtered;
+				//ywStruct->distance_1 = filtered;
 
 				temp = atof(distFromAnchor[2]);
-				filtered = MA_filtering(temp, buffer[1], weightArr);
-				filtered = KalmanFilter(1, filtered);
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
+				filtered = cpKalmanFilter(1, filtered);
 				if (filtered != 0)
 					ywStruct->distance_2 = filtered*84.896 - 35.1868;
 
 				temp = atof(distFromAnchor[3]);
-				filtered = MA_filtering(temp, buffer[2], weightArr);
-				filtered = KalmanFilter(2, filtered);
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
+				filtered = cpKalmanFilter(2, filtered);
 				if (filtered != 0)
 					ywStruct->distance_3 = filtered*84.896 - 35.1868;
-				
+
 				//ywStruct->draw_flag = 1;
 				sprintf(realDistStr, "%f, %f, %f", ywStruct->distance_1, ywStruct->distance_2, ywStruct->distance_3);
 				SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(realDistStr), NULL);
@@ -494,28 +473,43 @@ void parsing(char* midData, YWstruct* ywStruct){
 				break;
 			}
 			else if (flag == 2){
-				temp = atof(distFromAnchor[2]);
-				filtered = MA_filtering(temp, buffer[1], weightArr);
-				if (filtered != 0){
-					ywStruct->width += filtered*84.896 - 35.1868; //width (anchor1 <-> anchor2)
-					ywStruct->cnt_width++;
+				if (cntDumpData > 100 && cntDumpData < 150){
+					temp = atof(distFromAnchor[2]);
+					filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
+					if (filtered != 0){
+						ywStruct->width += filtered*84.896 - 35.1868; //width (anchor1 <-> anchor2)
+						ywStruct->cnt_width++;
+					}
+					temp = atof(distFromAnchor[3]);
+					filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
+					if (filtered != 0){
+						ywStruct->height += filtered*84.896 - 35.1868; //height (anchor1 <-> anchor3)
+						ywStruct->cnt_height++;
+					}
+					cntDumpData++;
 				}
-				temp = atof(distFromAnchor[3]);
-				filtered = MA_filtering(temp, buffer[2], weightArr);
-				if (filtered != 0){
-					ywStruct->height += filtered*84.896 - 35.1868; //height (anchor1 <-> anchor3)
-					ywStruct->cnt_height++;
+				else if (cntDumpData <= 100){
+					cntDumpData++;
+				}
+				else if (cntDumpData == 150){
+					/*이제 캘리브레이션 그만해도된다는 것을 사용자에게 알릴 수 있도록 해야한다.*/
+					/*cntDumpData = 0;*/
+					MessageBoxA(ywStruct->hWndMain, "calibration complete", "calibration complete", MB_OK);
+					ywStruct->width = ywStruct->width / (float)ywStruct->cnt_width;
+					ywStruct->height = ywStruct->height / (float)ywStruct->cnt_height;
+					ywStruct->draw_flag = 1;
+					cntDumpData = 0;
 				}
 			}
 			else if (flag == 3){
 				temp = atof(distFromAnchor[1]);
-				filtered = MA_filtering(temp, buffer[0], weightArr);
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
 				if (filtered != 0){
 					ywStruct->width += filtered*84.896 - 35.1868; // width (anchor2 <-> anchor1)
 					ywStruct->cnt_width++;
 				}
 				temp = atof(distFromAnchor[3]);
-				filtered = MA_filtering(temp, buffer[2], weightArr);
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_3);
 				if (filtered != 0){
 					ywStruct->diagonal += filtered*84.896 - 35.1868; // diagonal length (anchor2 <->anchor3)
 					ywStruct->cnt_diagonal++;
@@ -523,13 +517,13 @@ void parsing(char* midData, YWstruct* ywStruct){
 			}
 			else if (flag == 4){
 				temp = atof(distFromAnchor[1]);
-				filtered = MA_filtering(temp, buffer[0], weightArr);
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_1);
 				if (filtered != 0){
 					ywStruct->height += filtered*84.896 - 35.1868; // height (anchor3 <-> anchor1)
 					ywStruct->cnt_height++;
 				}
 				temp = atof(distFromAnchor[2]);
-				filtered = MA_filtering(temp, buffer[1], weightArr); 
+				filtered = cpMovingAverageFilter(temp, CP_ANCHOR_2);
 				if (filtered != 0){
 					ywStruct->diagonal += filtered*84.896 - 35.1868; //diagonal length (anchor3 <-> anchor2)
 					ywStruct->cnt_diagonal++;
@@ -554,41 +548,13 @@ void parsing(char* midData, YWstruct* ywStruct){
 		}
 		pMidData++;
 	}
-
 }
 
-void flushBuffer(char* buffer, int bufferSize)
-{
-	for (int i = 0; i < bufferSize; i++){
-		buffer[i] = '\0';
-	}
-}
+//void flushBuffer(char* buffer, int bufferSize)
+//{
+//	for (int i = 0; i < bufferSize; i++){
+//		buffer[i] = '\0';
+//	}
+//}
 
 
-void shift_buf(float newData, float* dataBuf)
-{
-	int i = 0;
-	float temp = 0.0;
-	for (i = 1; i < BUFFER_LENGTH; i++){
-		temp = dataBuf[i];
-		dataBuf[i - 1] = temp;
-	}
-	dataBuf[i - 1] = newData;
-}
-float MA_filtering(float newData, float* dataBuf, float* weightArr)
-{
-	float retVal = 0.0;
-	int i = 0;
-	/*MA_filtering*/
-	if (dataBuf[0] != 0.0){
-		for (i = 0; i < BUFFER_LENGTH; i++){
-			retVal += (weightArr[i] * dataBuf[i]);
-		}
-		retVal += weightArr[i] * newData;
-		shift_buf(retVal, dataBuf);
-	}
-	else{
-		shift_buf(newData, dataBuf);
-	}
-	return retVal;
-}

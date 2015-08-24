@@ -27,7 +27,7 @@ typedef struct _YWstruct{
 
 	char BT_Name[20];		// Tag's Bluetooth name
 	char BT_Addr[17 + 1];	// Tag's Bluetooth MAC Address ( e.g  "00:19:01:37:BF:2E\0" )
-	char str[IU_MIDDLE_BUFFER_LENGTH];			// temporary member
+	char str[CP_RECV_BUF_LENGTH];			// temporary member
 	float distance_1;		// distance from Anchor1 to Tag
 	float distance_2;		// distance from Anchor2 to Tag
 	float distance_3;		// distance from Anchor3 to Tag
@@ -49,32 +49,22 @@ typedef struct _YWstruct{
 DWORD WINAPI GetToF(LPVOID ywStruct);
 //DWORD WINAPI DrawTrilateration(LPVOID lpParam);
 
-//Functions for BlueTooth Communication
+//Functions for BlueTooth Communication and Get ToF data
+int SetBluetooth(int ConnectionhMode, char* nameOrAddr);
 ULONG NameToBthAddr(const char * pszRemoteName, BTH_ADDR * pRemoteBthAddr);
 ULONG AddrStringToBtAddr(IN const char * pszRemoteAddr, OUT BTH_ADDR * pRemoteBtAddr);
-ULONG RunClientMode(ULONGLONG ululRemoteBthAddr, YWstruct* ywStruct);
+int StartBluetooth(ULONGLONG ululRemoteBthAddr, YWstruct* ywStruct);
 
 
 //////////////////////////////////////
 void parsing(char* string, YWstruct* ywStruct);
-typedef struct __distance{
-	double anchor1;
-	double anchor2;
-	double anchor3;
-	double anchor4;
-}distance;
 //////////////////////////////////////
 
 
-/////////////////////////////////////
-#define BUFFER_LENGTH 9
-void shift_buf(float newData, float* buf);
-float MA_filtering(float newData, float* dataBuf, float* weightArr);
-/////////////////////////////////////
 
 
 //////////////////////////////////////
-void flushBuffer(char* buffer, int bufferSize);
+//void flushBuffer(char* buffer, int bufferSize);
 //////////////////////////////////////
 
 #endif

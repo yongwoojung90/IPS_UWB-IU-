@@ -1,4 +1,5 @@
 #include "CP_Filter.h"
+#include "IU_BTComm.h"
 
 static float dataBuf[4][BUFFER_LENGTH] = { 0, };
 
@@ -13,30 +14,54 @@ void cpShiftBuf(float newData, float* dataBuf)
 	dataBuf[i - 1] = newData;
 }
 
-float cpMovingAverageFilter(float inputData, int AnchorID, float* weightArr)
+//float cpMovingAverageFilter(float inputData, int AnchorID, float* weightArr)
+//{
+//	float defualtWeightArr[BUFFER_LENGTH + 1] = { 0.06f, 0.06f, 0.06f, 0.06f, 0.06f, 0.07f, 0.08f, 0.13f, 0.18f, 0.24f };
+//	float retVal = 0.0;
+//	int i = 0;
+//
+//	if (weightArr == NULL){ weightArr = defualtWeightArr; }
+//
+//	if (dataBuf[AnchorID][0] != 0.0){
+//		for (i = 0; i < BUFFER_LENGTH; i++){
+//			retVal += (weightArr[i] * dataBuf[AnchorID][i]);
+//		}
+//		retVal += weightArr[i] * inputData;
+//		cpShiftBuf(retVal, dataBuf[AnchorID]);
+//	}
+//	else{
+//		cpShiftBuf(inputData, dataBuf[AnchorID]);
+//	}
+//	return retVal;
+//}
+
+CpToF cpMovingAverageFilter(CpToF ToF, float* weightArr)
 {
 	float defualtWeightArr[BUFFER_LENGTH + 1] = { 0.06f, 0.06f, 0.06f, 0.06f, 0.06f, 0.07f, 0.08f, 0.13f, 0.18f, 0.24f };
-	float retVal = 0.0;
+	CpToF retVal = { 0.0f, };
 	int i = 0;
 
 	if (weightArr == NULL){ weightArr = defualtWeightArr; }
-
-	if (dataBuf[AnchorID][0] != 0.0){
-		for (i = 0; i < BUFFER_LENGTH; i++){
-			retVal += (weightArr[i] * dataBuf[AnchorID][i]);
+	for (int AnchorID = 1; AnchorID < 4; AnchorID++){
+		if (dataBuf[AnchorID][0] != 0.0){
+			for (i = 0; i < BUFFER_LENGTH; i++){
+				retVal.Anchor[AnchorID] += (weightArr[i] * dataBuf[AnchorID][i]);
+			}
+			retVal.Anchor[AnchorID] += weightArr[i] * ToF.Anchor[AnchorID];
+			cpShiftBuf(retVal.Anchor[AnchorID], dataBuf[AnchorID]);
 		}
-		retVal += weightArr[i] * inputData;
-		cpShiftBuf(retVal, dataBuf[AnchorID]);
+		else{
+			cpShiftBuf(ToF.Anchor[AnchorID], dataBuf[AnchorID]);
+		}
 	}
-	else{
-		cpShiftBuf(inputData, dataBuf[AnchorID]);
-	}
+
 	return retVal;
 }
 
 float cpKalmanFilter(float inputData, int AnchorID, float Q, float R)
 {
 	static float xhat[4] = { 0.0f, };
+
 	static float P[4] = { 0.0f, };
 	static float xhatbar[4] = { 0.0f, };
 	static float Pbar[4] = { 0.0f, };

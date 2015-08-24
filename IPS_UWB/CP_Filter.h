@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "IU_BTComm.h"
 
 #define CP_ANCHOR_1 1
 #define CP_ANCHOR_2 2
@@ -19,7 +20,8 @@ float cpKalmanFilter(float inputData, int AnchorNumber, float Q = 0.0071f, float
 void cpShiftBuf(float newData, float* buf);
 
 //
-float cpMovingAverageFilter(float inputData, int anchorNo, float* weightArr = NULL);
+//float cpMovingAverageFilter(float inputData, int anchorNo, float* weightArr = NULL);
+CpToF cpMovingAverageFilter(CpToF ToF, float* weightArr = NULL);
 //////////////////////////////////////////////////////////////////////
 
 

@@ -19,13 +19,12 @@ DEFINE_GUID(g_guidServiceClass, 0xb62c4e8d, 0x62cc, 0x404b, 0xbb, 0xbf, 0xbf, 0x
 #define CXN_DELAY_NEXT_INQUIRY            15
 /////////////////////////////////////////////////////
 
+typedef struct _FloatArray{
+	float Anchor[4];
+}FloatArray;
 
-typedef struct _CpToF{
-	float Anchor[4];
-}CpToF;
-typedef struct _CpRealDistance{
-	float Anchor[4];
-}CpRealDistance;
+typedef FloatArray CpToF;
+typedef FloatArray CpRealDistance;
 
 
 

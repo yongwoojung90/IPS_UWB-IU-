@@ -278,6 +278,8 @@ int cpStartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 	int   totalRecvLen = 0;
 	int   flag = 1;
 
+	CpToF ToF;
+
 	while (flag) {
 		while (totalRecvLen < CP_RECV_BUF_LENGTH){
 			recvLen = recv(BT_Socket, (char*)pRecvDataBuf, CP_RECV_BUF_LENGTH - totalRecvLen, 0); //pRecvDataBuf 에 형변환 해주는 이유는 현재 행 이후의 연산과정에서 int로 형변환이 되기때문
@@ -287,8 +289,15 @@ int cpStartBluetooth(ULONGLONG ululTagBlueToothAddr, YWstruct* ywStruct)
 				pRecvDataBuf += recvLen;
 				totalRecvLen += recvLen;
 				if (totalRecvLen >= CP_RECV_BUF_LENGTH){
-					parsing(recvBuffer, ywStruct);
-					/*filtering*/
+
+					//parse three ToF data from receive buffer
+					ToF = cpParsing(recvBuffer, ywStruct);
+					
+					//Moving Average Filtering
+					ToF = cpMovingAverageFilter(ToF);
+
+					//Kalman Filtering
+
 
 					//SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(recvBuffer));
 					if (ywStruct->draw_flag == 1) SendMessage(ywStruct->hWndMain, WM_USER + 1, (WPARAM)ywStruct->width, (LPARAM)ywStruct->height);
@@ -394,7 +403,7 @@ CpToF cpParsing(char* strSrcData, YWstruct* ywStruct){
 	int index = 0;
 	int len = 0;
 
-	CpToF ToF; // 파싱된 ToF값들이 저장되고, 리턴되어진다.
+	CpToF ToF = { 0.0f, }; // 파싱된 ToF값들이 저장되고, 리턴되어진다.
 	////////////////////////////////////////
 
 	float newData = 0.0;
@@ -434,7 +443,7 @@ CpToF cpParsing(char* strSrcData, YWstruct* ywStruct){
 	}
 
 
-	if (flag == 0) return; //받은 데이터에 '*'또는 '!' , '@', '#'가 없으므로 parsing하지 않고 나간다.
+	if (flag == 0) return ToF; //받은 데이터에 '*'또는 '!' , '@', '#'가 없으므로 parsing하지 않고 나간다.
 
 
 	float filtered = 0.0;
@@ -454,20 +463,20 @@ CpToF cpParsing(char* strSrcData, YWstruct* ywStruct){
 			if (flag == 1){
 
 				ToF.Anchor[1] = atof(distFromAnchor[1]);
-				filtered = cpMovingAverageFilter(ToF.Anchor[1], CP_ANCHOR_1);
+				//ToF = cpMovingAverageFilter(ToF);
 				filtered = cpKalmanFilter(filtered, 1);
 				if (filtered != 0)
 					ywStruct->distance_1 = filtered*84.896 - 35.1868;  //Tof to Real Distance (cm)
 				//ywStruct->distance_1 = filtered;
 
 				ToF.Anchor[2] = atof(distFromAnchor[2]);
-				filtered = cpMovingAverageFilter(ToF.Anchor[2], CP_ANCHOR_2);
+				//filtered = cpMovingAverageFilter(ToF.Anchor[2], CP_ANCHOR_2);
 				filtered = cpKalmanFilter(filtered, 2);
 				if (filtered != 0)
 					ywStruct->distance_2 = filtered*84.896 - 35.1868;
 
 				ToF.Anchor[3] = atof(distFromAnchor[3]);
-				filtered = cpMovingAverageFilter(ToF.Anchor[3], CP_ANCHOR_3);
+				//filtered = cpMovingAverageFilter(ToF.Anchor[3], CP_ANCHOR_3);
 				filtered = cpKalmanFilter(filtered, 3);
 				if (filtered != 0)
 					ywStruct->distance_3 = filtered*84.896 - 35.1868;
@@ -482,13 +491,13 @@ CpToF cpParsing(char* strSrcData, YWstruct* ywStruct){
 			else if (flag == 2){
 				if (cntDumpData > 100 && cntDumpData < 150){
 					ToF.Anchor[2] = atof(distFromAnchor[2]);
-					filtered = cpMovingAverageFilter(ToF.Anchor[2], CP_ANCHOR_2);
+					//filtered = cpMovingAverageFilter(ToF.Anchor[2], CP_ANCHOR_2);
 					if (filtered != 0){
 						ywStruct->width += filtered*84.896 - 35.1868; //width (anchor1 <-> anchor2)
 						ywStruct->cnt_width++;
 					}
 					ToF.Anchor[3] = atof(distFromAnchor[3]);
-					filtered = cpMovingAverageFilter(ToF.Anchor[3], CP_ANCHOR_3);
+					//filtered = cpMovingAverageFilter(ToF.Anchor[3], CP_ANCHOR_3);
 					if (filtered != 0){
 						ywStruct->height += filtered*84.896 - 35.1868; //height (anchor1 <-> anchor3)
 						ywStruct->cnt_height++;

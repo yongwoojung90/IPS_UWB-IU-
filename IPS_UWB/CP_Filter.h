@@ -4,25 +4,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "IU_BTComm.h"
+#include "CP_Bluetooth.h"
+#include "CP_Definition.h"
 
-#define CP_ANCHOR_1 1
-#define CP_ANCHOR_2 2
-#define CP_ANCHOR_3 3
+//
+CpToF cpParsingAndGetToF(char* strSrcData);
 
+//
+CpToF cpKalmanFilter(CpToF ToF, float Q = 0.0071f, float R = 0.608f);
 
-float cpKalmanFilter(float inputData, int AnchorNumber, float Q = 0.0071f, float R = 0.608f);
-
-////////////////Moving Average Filter Function////////////////////////
-#define BUFFER_LENGTH 9
+//
+#define CP_FILTER_BUFFER_LENGTH 9
 
 //
 void cpShiftBuf(float newData, float* buf);
 
 //
-//float cpMovingAverageFilter(float inputData, int anchorNo, float* weightArr = NULL);
 CpToF cpMovingAverageFilter(CpToF ToF, float* weightArr = NULL);
-//////////////////////////////////////////////////////////////////////
 
+//transform raw ToF(or filtered ToF) into real distance(centi-meter, cm)
+CpRealDistance cpToFtoRealdistance(CpToF ToF); 
 
 #endif

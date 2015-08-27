@@ -3,9 +3,9 @@
 #include <opencv\highgui.h>
 #include <opencv\cv.h>
 #include <math.h>
-#include "IU_BTComm.h"
+#include "CP_Bluetooth.h"
 
-void TriThread(YWstruct* ywStruct);
+void TriThread(FloatArray* QubeSize);
 CvPoint Trilateration_2D(CvPoint Anchor1, CvPoint Anchor2, CvPoint Anchor3, double r1, double r2, double r3);
 double square(double x);
 void on_mouseEvent(int event, int x, int y, int flag, void* param);

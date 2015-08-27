@@ -1,4 +1,4 @@
-#include "IU_BTComm.h"
+#include "CP_Bluetooth.h"
 #include "Trilateration_2D.h"
 #include "Trilateration_3D.h"
 
@@ -33,6 +33,7 @@ GLvoid ReSizeGLScene(GLsizei width, GLsizei height);
 #ifndef GET_Y_LPARAM
 #define GET_Y_LPARAM(lParam)	((int)(short)HIWORD(lParam))
 #endif
+
 GLfloat xAngle; // Key Point
 GLfloat yAngle; // Key Point
 GLfloat zDelta;
@@ -131,7 +132,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		//ShowWindow(button, SW_SHOW);
 		return 0;
 	case WM_COMMAND:
-		CloseHandle(CreateThread(NULL, 0, GetToF, &ywStruct, 0, &ThreadID)); //ToF값 받는 Thread 등록
+		CloseHandle(CreateThread(NULL, 0, BluetoothThread, (LPVOID)hWnd, 0, &ThreadID)); //ToF값 받는 Thread 등록
 		return 0;
 
 	case WM_ACTIVATE:
@@ -201,13 +202,19 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		zDelta += (GLfloat)Z / 100.0f;
 		return 0;
 	}
+	case WM_CP_DRAW_QUBE:
+		TriThread((CpQubeSize*)lParam);
+		
+		return 0;
+	case WM_CP_DRAW_TAG:
 
+		return 0;
 	case WM_USER + 1:
 		TriThread(&ywStruct);
 		return 0;
 	case WM_USER + 2:
 		hDC = GetDC(hWnd);
-		sprintf(Mes, "data : %s", (char*)wParam);
+		sprintf(Mes, "data : %s", (char*)wParam); //wParam은 원래 실거리로 변환된 거리 3개 써있는 스트링이었음
 		TextOutA(hDC, 10, 30, Mes, strlen(Mes));
 		//TextOutA(hDC, 10, 10, (char*)lParam, wParam);
 		ReleaseDC(hWnd, hDC);
@@ -237,60 +244,6 @@ DWORD WINAPI DrawTrilateration(LPVOID lpParam)
 {
 	TriThread(&ywStruct);
 	return 0;
-}
-
-DWORD WINAPI GetToF(LPVOID ywStruct)
-{
-	int			retVal = 0;
-	ULONGLONG  ululTagBlueToothAddr = 0;
-	int BToothConnMode = 2; //BlueToothConnectionMode : 1 - connection using tag's bluetooth name, 2 - using tag's bluetooth address
-	YWstruct* pYWstruct;
-	char tagBlueToothName[BTH_MAX_NAME_SIZE + 1] = { '\0', };  // 1 extra for trailing NULL character
-	char tagBlueToothAddr[CP_BT_ADDR_LEN] = { '\0', };
-	WSADATA    WSAData = { 0 };
-
-	pYWstruct = (YWstruct*)ywStruct;
-
-	//ready to bluetooth connection
-	if ((retVal = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0) //if success to initial, WSAStartup() return 0
-	{
-		goto WinsockCleanupAndExit;
-	}
-	if (BToothConnMode == 1)
-	{
-		char* BTD_Name = "UWB";
-		strcpy(tagBlueToothName, BTD_Name);
-
-		// Get address from name of the remote device and run the application in client mode
-		if ((retVal = NameToBthAddr(tagBlueToothName, (BTH_ADDR *)&ululTagBlueToothAddr)) != 0)
-		{
-			goto WinsockCleanupAndExit;
-		}
-	}
-	else if (BToothConnMode == 2)
-	{
-		char* BTD_Addr = "00:19:01:37:BF:2E";
-		strcpy(tagBlueToothAddr, BTD_Addr);
-		// Get address from formatted address-string of the remote device and run the application in client mode
-		//  should be calling the WSAStringToAddress()
-		if (0 != (retVal = AddrStringToBtAddr(tagBlueToothAddr, (BTH_ADDR *)&ululTagBlueToothAddr)))
-		{
-			goto WinsockCleanupAndExit;
-		}
-	}
-
-	//start bluetooth comm and recveive ToF data from Tag(UWB trx device)
-	retVal = cpStartBluetooth(ululTagBlueToothAddr, pYWstruct);
-
-
-
-	return 0; //error free terminate thread
-
-WinsockCleanupAndExit:
-	WSACleanup();
-	/* retVal has winsock error code */
-	/* https://msdn.microsoft.com/en-us/library/windows/desktop/ms740668(v=vs.85).aspx */
-	return retVal;
 }
 
 BOOL CreateGLWindow(wchar_t* title, int width, int height, int bits, bool fullscreenflag)

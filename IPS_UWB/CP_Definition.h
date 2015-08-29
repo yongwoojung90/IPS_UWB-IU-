@@ -1,10 +1,9 @@
-#ifndef __DEFINITION_H__
-#define __DEFINITION_H__
+#ifndef __CP_DEFINITION_H__
+#define __CP_DEFINITION_H__
 
 #include <Windows.h>
 
-#define WM_CP_DRAW_QUBE WM_USER+30
-#define WM_CP_DRAW_TAG WM_USER+31
+#define WM_CP_DRAW WM_USER+30
 
 #define CP_PACKET_LENGTH			25		// length of the Cicada Project Protocol's packet :  *00.0000,00.0000,00.0000=
 #define CP_RECV_BUF_LENGTH			CP_PACKET_LENGTH*2 // 50bytes-bluetooth receive buffer length
@@ -24,34 +23,31 @@
 #define CP_BLUETOOTH_USING_NAME 1
 #define CP_BLUETOOTH_USING_ADDRESS 2
 
+typedef struct _CpQubeSize{
+	float width;
+	float length;
+	float height;
+
+	operator WPARAM() const { return WPARAM(); }
+	operator LPARAM() const { return LPARAM(); }
+}CpQubeSize;
+
 typedef struct _FloatArray{
 	float Anchor[4];
-	FloatArray();
-	FloatArray(CpQubeSize qs)
+	void FloatArray();
+	void FloatArray(_CpQubeSize qs)
 	{
 		Anchor[1] = qs.width;
 		Anchor[2] = qs.length;
 		Anchor[3] = qs.height;
 	}
 	operator WPARAM() const { return WPARAM(); }
+	operator LPARAM() const { return LPARAM(); }
 }FloatArray;
 
 typedef FloatArray CpToF;
 typedef FloatArray CpRealDistance;
 
-typedef struct _CpQubeSize{
-	float width;
-	float length;
-	float height;
-	CpQubeSize();
-	CpQubeSize(FloatArray fa)
-	{
-		width = fa.Anchor[1];
-		length = fa.Anchor[2];
-		height = fa.Anchor[3];
-	}
 
-	operator WPARAM() const { return WPARAM(); }
-}CpQubeSize;
 
 #endif

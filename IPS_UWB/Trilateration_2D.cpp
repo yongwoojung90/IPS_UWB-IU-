@@ -1,13 +1,5 @@
-
 #include "Trilateration_2D.h"
 #include <Windows.h>
-
-double r1, r2, r3;
-CvPoint Anchor1;
-CvPoint Anchor2;
-CvPoint Anchor3;
-
-IplImage* bckgrd;
 
 double square(double x)
 {
@@ -31,37 +23,50 @@ CvPoint Trilateration_2D(CvPoint Anchor1, CvPoint Anchor2, CvPoint Anchor3, doub
 	return tag;
 }
 
-void TriThread(FloatArray* QubeSize)
+void TriThread(LPARAM lParam, int mode)
 {
-	r1 = 0;
-	r2 = 0;
-	r3 = 0;
-	int width;
-	int height;
-	width = QubeSize->width / 10;
-	height = QubeSize->height / 10;
+	double r1 = 0;
+	double r2 = 0;
+	double r3 = 0;
 
-	bckgrd = cvCreateImage(cvSize(width, height), IPL_DEPTH_8U, 3);
-	Anchor1 = cvPoint(0, 0);
-	Anchor2 = cvPoint(width, 0);
-	Anchor3 = cvPoint(0, height);
+	static int width = 0;	//가로
+	static int length = 0;	//세로
+	static int height = 0;	//높이
+
+	CpRealDistance RealDistance;
+	if (mode == CP_MODE_CALIBRATION){
+		CpQubeSize QubeSize = *((CpQubeSize*)lParam);
+		width = QubeSize.width;
+		length = QubeSize.length;
+		return;
+	}
+	else if (mode == CP_MODE_TRILATERATION){
+		RealDistance = *((CpRealDistance*)lParam);
+		r1 = RealDistance.Anchor[1];
+		r2 = RealDistance.Anchor[2];
+		r3 = RealDistance.Anchor[3];
+	}
+
+	if (r1 < 0) return;
+	if (r2 < 0) return;
+	if (r1 < 0) return;
+	if (width <= 0 || length <= 0) return;
+
+	IplImage* bckgrd = cvCreateImage(cvSize(width, length), IPL_DEPTH_8U, 3);
+
+	CvPoint Anchor1 = cvPoint(0, 0);
+	CvPoint Anchor2 = cvPoint(width, 0);
+	CvPoint Anchor3 = cvPoint(0, length);
+
 	cvNamedWindow("trilateration", CV_WINDOW_NORMAL);
 
 	CvPoint tag = cvPoint(0, 0);
-	
-	r1 = ywStruct->distance_1;
-	r2 = ywStruct->distance_2;
-	r3 = ywStruct->distance_3;
-
-	/*쓰레기 값 들어오면 예외처리*/
 
 	tag = Trilateration_2D(Anchor1, Anchor2, Anchor3, r1, r2, r3);
 
 
 	cvSet(bckgrd, CV_RGB(255, 255, 255));
-	cvRectangle(bckgrd, Anchor1, cvPoint(width, height), CV_RGB(0, 0, 0));
-
-
+	cvRectangle(bckgrd, Anchor1, cvPoint(width, length), CV_RGB(0, 0, 0));
 
 	cvCircle(bckgrd, Anchor1, r1, CV_RGB(255, 0, 0), 1);
 	cvCircle(bckgrd, Anchor1, 3, CV_RGB(255, 0, 0), 1);

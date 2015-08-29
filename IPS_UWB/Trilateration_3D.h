@@ -5,6 +5,7 @@
 #include <gl\gl.h>			// Header File For The OpenGL32 Library
 #include <gl\glu.h>			// Header File For The GLu32 Library
 //#include <gl\glaux.h>		// Header File For The Glaux Library
+#include "CP_Definition.h"
 
 typedef struct _ywPos{
 	float x;
@@ -12,6 +13,6 @@ typedef struct _ywPos{
 	float z;
 }ywPos;
 
-ywPos calcTagPosition(ywPos Anchor1, ywPos Anchor2, ywPos Anchor3, float r1, float r2, float r3, char* debugStr);
+ywPos calcTagPosition(CpQubeSize QubeSize, CpRealDistance RealDistance);
 
 #endif

@@ -17,7 +17,7 @@ DWORD WINAPI BluetoothThread(LPVOID hWnd)
 	//ready to bluetooth connection
 	if ((retVal = WSAStartup(MAKEWORD(2, 2), &WSAData)) != 0) //if success to initial, WSAStartup() return 0
 	{
-		goto WinsockCleanupAndExit;
+		//goto WinsockCleanupAndExit;
 	}
 	if (BlueToothConnectionMode == CP_BLUETOOTH_USING_NAME)
 	{
@@ -27,7 +27,7 @@ DWORD WINAPI BluetoothThread(LPVOID hWnd)
 		// Get address from name of the remote device and run the application in client mode
 		if ((retVal = NameToBthAddr(tagBlueToothName, (BTH_ADDR *)&ululTagBlueToothAddr)) != 0)
 		{
-			goto WinsockCleanupAndExit;
+			//goto WinsockCleanupAndExit;
 		}
 	}
 	else if (BlueToothConnectionMode == CP_BLUETOOTH_USING_ADDRESS)
@@ -38,7 +38,7 @@ DWORD WINAPI BluetoothThread(LPVOID hWnd)
 		//  should be calling the WSAStringToAddress()
 		if (0 != (retVal = AddrStringToBtAddr(tagBlueToothAddr, (BTH_ADDR *)&ululTagBlueToothAddr)))
 		{
-			goto WinsockCleanupAndExit;
+			//goto WinsockCleanupAndExit;
 		}
 	}
 
@@ -69,7 +69,7 @@ DWORD WINAPI BluetoothThread(LPVOID hWnd)
 	CpToF MovingAverageFilteredToF;
 	CpToF KalmanFilteredToF;
 	CpRealDistance RealDistance;
-	CpQubeSize QubeSize = { 0.0 };
+	CpQubeSize QubeSize;
 
 	while (totalRecvLen < CP_RECV_BUF_LENGTH){
 		recvLen = recv(BT_Socket, (char*)pRecvDataBuf, CP_RECV_BUF_LENGTH - totalRecvLen, 0); //pRecvDataBuf 에 형변환 해주는 이유는 현재 행 이후의 연산과정에서 int로 형변환이 되기때문
@@ -94,12 +94,13 @@ DWORD WINAPI BluetoothThread(LPVOID hWnd)
 
 				if (RealDistance.Anchor[0] == CP_MODE_CALIBRATION){
 					QubeSize = cpCalibration(RealDistance);
-					if (QubeSize.width != 0){
-						SendMessage((HWND)hWnd, WM_CP_DRAW_QUBE, (WPARAM)QubeSize, (LPARAM)&QubeSize);
+					if (QubeSize.height == CP_CALIBRATION_COMPLETE){
+						SendMessage((HWND)hWnd, WM_CP_DRAW, (WPARAM)CP_MODE_CALIBRATION, (LPARAM)&QubeSize);
+						MessageBoxA((HWND)hWnd, "Calibration Complete", "Calibration Complete", MB_OK);
 					}
 				}
 				else{
-					SendMessage((HWND)hWnd, WM_CP_DRAW_TAG, (WPARAM)RealDistance, NULL);
+					SendMessage((HWND)hWnd, WM_CP_DRAW, (WPARAM)CP_MODE_TRILATERATION, (LPARAM)&RealDistance);
 				}
 
 				//SendMessage(ywStruct->hWndMain, WM_USER + 2, (WPARAM)(totalRecvLen), (LPARAM)(recvBuffer));

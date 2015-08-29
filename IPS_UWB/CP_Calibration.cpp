@@ -16,6 +16,7 @@ CpQubeSize cpCalibration(CpRealDistance RealDistance)
 	else if (CP_CALIBRATION_DISCARD <= cntDiscard && cntDiscard < CP_CALIBRATION_SAVE){
 		width += RealDistance.Anchor[2];
 		length += RealDistance.Anchor[3];
+		cntDiscard++;
 		cntSave++;
 	}
 	else{

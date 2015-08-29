@@ -1,5 +1,5 @@
-#ifndef __IU_BTCOMM_H__
-#define __IU_BTCOMM_H__
+#ifndef __CP_BLUETOOTH_H__
+#define __CP_BLUETOOTH_H__
 
 #include <stdio.h>
 #include <initguid.h>

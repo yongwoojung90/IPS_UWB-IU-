@@ -60,6 +60,7 @@ CpToF cpParsingAndGetToF(char* strSrcData){
 				ToF.Anchor[0] = CP_MODE_CALIBRATION;
 				ToF.Anchor[2] = atof(distFromAnchor[2]);
 				ToF.Anchor[3] = atof(distFromAnchor[3]);
+				return ToF;
 			}
 		default:
 			if (('0' <= *pStrSrcData && *pStrSrcData <= '9') || *pStrSrcData == '.'){ //when receive error free data

@@ -1,5 +1,5 @@
-#ifndef __CALIBRATION_H__
-#define __CALIBRATION_H__
+#ifndef __CP_CALIBRATION_H__
+#define __CP_CALIBRATION_H__
 
 #include "CP_Bluetooth.h"
 

@@ -1,39 +1,25 @@
 #include "CP_Bluetooth.h"
 #include "Trilateration_2D.h"
 #include "Trilateration_3D.h"
+#include "CP_DRAW.h"
 
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 HINSTANCE g_hInstance;
 HDC hDC;
 HGLRC hRC;
 HWND hWnd;
-
-YWstruct ywStruct;
+CpRealDistance gRealDistance;
+CpQubeSize gQubeSize;
 
 bool keys[256];
 
-int writeFlag = 0;
-int writeCount = 0;
+//int writeFlag = 0;
+//int writeCount = 0;
+//float tempDist1;
 
-
-float tempDist1;
-
-
+bool isReadyToDraw = false;
 
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-GLvoid KillGLWindow();
-BOOL CreateGLWindow(wchar_t* title, int width, int height, int bits, bool fullscreenflag);
-int DrawGLScene();
-int InitGL();
-GLvoid ReSizeGLScene(GLsizei width, GLsizei height);
-
-#ifndef GET_X_LPARAM
-#define GET_X_LPARAM(lParam)	((int)(short)LOWORD(lParam))
-#endif
-#ifndef GET_Y_LPARAM
-#define GET_Y_LPARAM(lParam)	((int)(short)HIWORD(lParam))
-#endif
-
 GLfloat xAngle; // Key Point
 GLfloat yAngle; // Key Point
 GLfloat zDelta;
@@ -47,6 +33,10 @@ GLUquadricObj *tag;
 float radius_1, radius_2, radius_3;
 bool isActive = true; //when window is minimization state, has false value
 bool fullscreen = false;
+
+static float width_3D = 0.0f;
+static float height_3D = 0.0f;
+static float length_3D = 0.0f;
 //VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV
 
 
@@ -74,7 +64,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 	RegisterClass(&WndClass);
 
 	//파일입출력
-	ywStruct.hFile = CreateFile(L"ToF_Data.txt", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);  //파일 입출력하기위해서 파일 오픈해놈
+	//ywStruct.hFile = CreateFile(L"ToF_Data.txt", GENERIC_WRITE, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);  //파일 입출력하기위해서 파일 오픈해놈
 
 
 	if (!CreateGLWindow(L"yongwoo creative project", 650, 480, 16, fullscreen))
@@ -93,24 +83,24 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevIn
 			}
 		}
 		else {
-			if (keys[VK_ESCAPE] || !DrawGLScene()) break; // ESC 키 입력 받았거나 그리는데 실패했다면 프로그램 종료
-			else SwapBuffers(hDC);  // Swap Buffers (Double Buffering)
+			if (isReadyToDraw){
+				if (keys[VK_ESCAPE] || !DrawGLScene()) break;
+				else SwapBuffers(hDC);  // Swap Buffers (Double Buffering)
 
-			if (keys[VK_F1]){
-				keys[VK_F1] = FALSE;
-				KillGLWindow();
-				fullscreen = !fullscreen;
-				// Recreate Our OpenGL Window
-				if (!CreateGLWindow(L"yongwoo creative project", 650, 480, 16, &fullscreen)) break; // Quit If Window Was Not Created
+				if (keys[VK_F1]){
+					keys[VK_F1] = FALSE;
+					KillGLWindow();
+					fullscreen = !fullscreen;
+					// Recreate Our OpenGL Window
+					if (!CreateGLWindow(L"yongwoo creative project", 650, 480, 16, &fullscreen)) break; // Quit If Window Was Not Created
+				}
 			}
 		}
 	}
 
 	gluDeleteQuadric(anchor_1); // 추가 코드
 
-	// Shutdown
-	KillGLWindow();									// Kill The Window
-
+	KillGLWindow();
 	return (int)Message.wParam;
 }
 
@@ -119,12 +109,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	DWORD ThreadID;
 	HWND button;
 	char Mes[100] = { 0 };
-
+	int mode;
 	switch (iMessage)
 	{
 	case WM_CREATE:
-		ywStruct.hWndMain = hWnd;
-
 		button = CreateWindow(L"BUTTON", L"OK",
 			WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 			0, 0, 10, 10,
@@ -151,14 +139,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		//	break;					// Exit
 	case WM_KEYDOWN:
 		keys[wParam] = true;
-		ywStruct.keys[wParam] = TRUE;
-		ywStruct.flag = 1;
-		//MessageBox(hWnd, L"keyDown", L"keyDown", MB_OK);
 		return 0;
 	case WM_KEYUP:
 		keys[wParam] = false;
-		//MessageBox(hWnd, L"keyUp", L"keyUp", MB_OK);
-		ywStruct.keys[wParam] = FALSE;
 		return 0;
 
 	case WM_LBUTTONDOWN:
@@ -202,15 +185,22 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		zDelta += (GLfloat)Z / 100.0f;
 		return 0;
 	}
-	case WM_CP_DRAW_QUBE:
-		TriThread((CpQubeSize*)lParam);
-		
+	case WM_CP_DRAW:
+		mode = (int)wParam;
+		if (mode == CP_MODE_TRILATERATION) {
+			gRealDistance = *((CpRealDistance*)lParam);
+		}
+		else if (mode == CP_MODE_CALIBRATION){
+			gQubeSize = *((CpQubeSize*)lParam);
+			width_3D = gQubeSize.width;
+			length_3D = gQubeSize.length;
+			isReadyToDraw = true;
+		}
+		TriThread(lParam, mode);
 		return 0;
-	case WM_CP_DRAW_TAG:
 
-		return 0;
 	case WM_USER + 1:
-		TriThread(&ywStruct);
+
 		return 0;
 	case WM_USER + 2:
 		hDC = GetDC(hWnd);
@@ -220,18 +210,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 		ReleaseDC(hWnd, hDC);
 		return 0;
 	case WM_USER + 3:
-		if (ywStruct.distance_1 > 0 && ywStruct.distance_2 > 0 && ywStruct.distance_3 > 0){
-			radius_1 = ywStruct.distance_1 / 10.0;
-			radius_2 = ywStruct.distance_2 / 10.0;
-			radius_3 = ywStruct.distance_3 / 10.0;
-		}
-		else{
-			radius_1 = 10.0;
-			radius_2 = 10.0;
-			radius_3 = 10.0;
-		}
+
 		return 0;
 	case WM_DESTROY:
+		// Shutdown
+		KillGLWindow();									// Kill The Window
 		PostQuitMessage(0);
 		return 0;
 	}
@@ -239,12 +222,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT iMessage, WPARAM wParam, LPARAM lParam)
 	return DefWindowProc(hWnd, iMessage, wParam, lParam);
 }
 
-//굳이 쓰레드 돌릴 필요 없고 ToF받아서 값 확인 해보고 제대로된 값 받았으면 그때 유저 메세지 날려서 그리게 해도된다.
-DWORD WINAPI DrawTrilateration(LPVOID lpParam)
-{
-	TriThread(&ywStruct);
-	return 0;
-}
 
 BOOL CreateGLWindow(wchar_t* title, int width, int height, int bits, bool fullscreenflag)
 {
@@ -495,6 +472,8 @@ int InitGL(GLvoid)										// All Setup For OpenGL Goes Here
 
 	return TRUE;										// Initialization Went OK
 }
+
+
 int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 {
 	//Anchor* anchor_2 = new Anchor(); /*TODO 이거 DrawGLScene()함수가 호출될때마다 계속 객체생성되니간 한번생성해서 쓸쑤있게 수정하자*/
@@ -514,32 +493,27 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	else if (keys[VK_RIGHT]){
 		yAngle += 0.5f;
 	}
-	if (keys[VK_SPACE]){
-		writeFlag = 1;
-	}
-	char tempStrDrawGLScene[100] = { '\0', };
 
-
-	if (writeFlag == 1 && writeCount != 3000){
-		if (tempDist1 != ywStruct.distance_1){
-			tempDist1 = ywStruct.distance_1;
-			printf("%f\n", ywStruct.distance_1);
-			writeCount++;
-
-		}
-	}
-	if (writeCount == 3000){
-		MessageBoxA(hWnd, "기록끝! 다음 거리로!", "기록끝! 다음 거리로!", MB_OK);
-		writeFlag = 0;
-		writeCount = 0;
-		printf("\n\n");
-	}
-
-	hDC = GetDC(hWnd);
-	sprintf(tempStrDrawGLScene, "count : %d // data: %f", writeCount, tempDist1);
-	TextOutA(hDC, 10, 100, tempStrDrawGLScene, strlen(tempStrDrawGLScene));
-	float width = 29.0f;
-	float height = 29.0f;
+	//if (keys[VK_SPACE]){
+	//	writeFlag = 1;
+	//}
+	//char tempStrDrawGLScene[100] = { '\0', };
+	//if (writeFlag == 1 && writeCount != 3000){
+	//	//if (tempDist1 != ywStruct.distance_1){
+	//	//	tempDist1 = ywStruct.distance_1;
+	//	//	printf("%f\n", ywStruct.distance_1);
+	//	//	writeCount++;
+	//	//}
+	//}
+	//if (writeCount == 3000){
+	//	MessageBoxA(hWnd, "기록끝! 다음 거리로!", "기록끝! 다음 거리로!", MB_OK);
+	//	writeFlag = 0;
+	//	writeCount = 0;
+	//	printf("\n\n");
+	//}
+	//hDC = GetDC(hWnd);
+	//sprintf(tempStrDrawGLScene, "count : %d // data: %f", writeCount, tempDist1);
+	//TextOutA(hDC, 10, 100, tempStrDrawGLScene, strlen(tempStrDrawGLScene));
 
 	glTranslatef(-20, 20, zDelta);
 	glColor3f(1.0f, 1.0f, 1.0f);
@@ -551,36 +525,35 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 
 
 	glBegin(GL_LINE_LOOP);
-	glVertex3f(0.0f, 0.0f, height);
-	glVertex3f(width, 0.0f, height);
-	glVertex3f(width, -17.0f, height);
-	glVertex3f(0.0f, -17.0f, height);
+	glVertex3f(0.0f, 0.0f, length_3D);
+	glVertex3f(width_3D, 0.0f, length_3D);
+	glVertex3f(width_3D, -17.0f, length_3D);
+	glVertex3f(0.0f, -17.0f, length_3D);
 	glEnd();
 
 	glBegin(GL_LINE_LOOP);
 	glVertex3f(0.0f, 0.0f, 0.0f);
-	glVertex3f(width, 0.0f, 0.0f);
-	glVertex3f(width, -17.0f, 0.0f);
+	glVertex3f(width_3D, 0.0f, 0.0f);
+	glVertex3f(width_3D, -17.0f, 0.0f);
 	glVertex3f(0.0f, -17.0f, 0.0f);
 	glEnd();
 
 	glBegin(GL_LINES);
-	glVertex3f(0.0f, 00.0f, height);
+	glVertex3f(0.0f, 00.0f, length_3D);
 	glVertex3f(0.0f, 00.0f, 0.0f);
 
-	glVertex3f(width, 0.0f, height);
-	glVertex3f(width, 0.0f, 0.0f);
+	glVertex3f(width_3D, 0.0f, length_3D);
+	glVertex3f(width_3D, 0.0f, 0.0f);
 
-	glVertex3f(width, -17.0f, height);
-	glVertex3f(width, -17.0f, 0.0f);
+	glVertex3f(width_3D, -17.0f, length_3D);
+	glVertex3f(width_3D, -17.0f, 0.0f);
 
-	glVertex3f(0.0f, -17.0f, height);
+	glVertex3f(0.0f, -17.0f, length_3D);
 	glVertex3f(0.0f, -17.0f, 0.0f);
 	glEnd();
 
 
 	//Trilateration_3D
-	ywPos Anchor1 = { 0, }, Anchor2 = { 0, }, Anchor3 = { 0, };
 	ywPos Tag = { 0, };
 
 
@@ -589,15 +562,11 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	//	WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
 	//	0, 0, 10, 10,
 	//	hWnd, (HMENU)100, g_hInstance, NULL);
-
-	char tagInfo[500] = { '\0', };
-
-	Tag = calcTagPosition(Anchor1, Anchor2, Anchor3, ywStruct.distance_1, ywStruct.distance_2, ywStruct.distance_3, tagInfo);
-
-	hDC = GetDC(hWnd);
-	TextOutA(hDC, 100, 30, tagInfo, strlen(tagInfo));
-
-	ReleaseDC(hWnd, hDC);
+	//char tagInfo[500] = { '\0', };
+	Tag = calcTagPosition(gQubeSize, gRealDistance);
+	//hDC = GetDC(hWnd);
+	//TextOutA(hDC, 100, 30, tagInfo, strlen(tagInfo));
+	//ReleaseDC(hWnd, hDC);
 
 	//tag
 	glPushMatrix();
@@ -627,8 +596,6 @@ int DrawGLScene(GLvoid)									// Here's Where We Do All The Drawing
 	//glColor3f(0.0f, 0.0f, 1.0f);
 	//gluSphere(anchor_3, ywStruct.distance_3 / 10.0f, 24, 24);
 	//glPopMatrix();
-
-
 
 	return TRUE;										// Everything Went OK
 }
